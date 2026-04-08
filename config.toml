@@ -1,0 +1,28 @@
+# snake-tokscale — application configuration
+# All non-secret settings live here. Secrets (if any) go in .env (gitignored).
+
+[tokscale]
+# GitHub-style username fetched from https://tokscale.ai/api/users/<username>
+username = "YoannLetacq"
+# API base URL (overridable for tests / staging).
+api_base = "https://tokscale.ai/api"
+# HTTP timeout in seconds.
+timeout = 30
+
+[grid]
+# Number of weeks rendered horizontally (GitHub convention = 53).
+weeks = 53
+# Output path (relative to repo root) for the generated JSON.
+output = "frontend/public/grid.json"
+
+[game]
+# Tick interval in milliseconds (lower = faster snake).
+tick_ms = 120
+# Score required to reach the "WON" screen.
+win_score = 50
+# localStorage key used to persist the best score.
+best_storage_key = "snake-tokscale:best"
+
+[deploy]
+# Vite base path — must match the GitHub Pages project URL suffix.
+base_path = "/snake-tokscale/"
