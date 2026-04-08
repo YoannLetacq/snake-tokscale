@@ -15,6 +15,14 @@ weeks = 53
 # Output path (relative to repo root) for the generated JSON.
 output = "frontend/public/grid.json"
 
+[svg]
+# Animated SVG output (embedded in README, committed to the `output` branch).
+output = "dist/snake.svg"
+# Snake length (segments) — purely visual.
+snake_length = 4
+# Total animation duration in seconds.
+duration_s = 30.0
+
 [game]
 # Tick interval in milliseconds (lower = faster snake).
 tick_ms = 120

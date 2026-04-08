@@ -1,12 +1,16 @@
 # snake-tokscale
 
-A playable Snake game rendered on top of your **tokscale.ai** token-usage heatmap.
-Inspired by [`Platane/snk`](https://github.com/Platane/snk), but:
+A Snake that eats your **tokscale.ai** token-usage heatmap — inspired by
+[`Platane/snk`](https://github.com/Platane/snk), but with two differences:
 
-1. the grid comes from the **public** `https://tokscale.ai/api/users/<username>` endpoint, and
-2. the snake is actually **playable** (keyboard-controlled React game, not a pre-rendered SVG).
+1. the grid comes from the public `https://tokscale.ai/api/users/<username>` endpoint
+   (tokscale only ships raw data, so the CLI renders the heatmap itself), and
+2. clicking the animated SVG opens a **playable** keyboard-controlled React version
+   on GitHub Pages.
 
-Live site: <https://yoannletacq.github.io/snake-tokscale/>
+[![snake-tokscale animated grid](https://raw.githubusercontent.com/YoannLetacq/snake-tokscale/output/snake.svg)](https://yoannletacq.github.io/snake-tokscale/)
+
+> Click the grid above to play the live version on GitHub Pages.
 
 ## Stack
 

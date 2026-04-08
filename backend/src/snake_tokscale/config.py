@@ -25,11 +25,21 @@ class GridConfig:
 
 
 @dataclass(frozen=True)
+class SvgConfig:
+    """Settings for the animated snake SVG."""
+
+    output: str
+    snake_length: int
+    duration_s: float
+
+
+@dataclass(frozen=True)
 class AppConfig:
     """Top-level configuration bundle loaded from config.toml."""
 
     tokscale: TokscaleConfig
     grid: GridConfig
+    svg: SvgConfig
 
 
 def load_config(path: Path | str) -> AppConfig:
@@ -40,6 +50,7 @@ def load_config(path: Path | str) -> AppConfig:
 
     tokscale_raw = raw.get("tokscale", {})
     grid_raw = raw.get("grid", {})
+    svg_raw = raw.get("svg", {})
 
     username = tokscale_raw.get("username")
     if not isinstance(username, str) or not username:
@@ -54,6 +65,11 @@ def load_config(path: Path | str) -> AppConfig:
         grid=GridConfig(
             weeks=int(grid_raw.get("weeks", 53)),
             output=str(grid_raw.get("output", "frontend/public/grid.json")),
+        ),
+        svg=SvgConfig(
+            output=str(svg_raw.get("output", "dist/snake.svg")),
+            snake_length=int(svg_raw.get("snake_length", 4)),
+            duration_s=float(svg_raw.get("duration_s", 30.0)),
         ),
     )
 
