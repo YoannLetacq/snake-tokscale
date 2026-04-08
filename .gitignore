@@ -28,6 +28,7 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+.claude/
 *.swp
 
 # Generated data (rebuilt by CI)
