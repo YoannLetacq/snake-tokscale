@@ -1,0 +1,145 @@
+name: refresh-and-deploy
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours
+  workflow_dispatch:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write       # needed to push the SVG to the `output` branch
+  pages: write          # needed to deploy to GitHub Pages
+  id-token: write       # needed by actions/deploy-pages
+
+concurrency:
+  group: snake-tokscale-deploy
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      svg-path: ${{ steps.generate.outputs.svg-path }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv (Python)
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run backend tests
+        working-directory: backend
+        run: uv run pytest -q
+
+      - name: Lint backend
+        working-directory: backend
+        run: uv run pylint src/snake_tokscale
+
+      - name: Generate grid.json and snake.svg
+        id: generate
+        run: |
+          uv run --project backend python -m snake_tokscale \
+            --config config.toml \
+            --grid-out frontend/public/grid.json \
+            --svg-out dist/snake.svg
+          echo "svg-path=dist/snake.svg" >> "$GITHUB_OUTPUT"
+
+      - name: Upload generated SVG artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snake-svg
+          path: dist/snake.svg
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Upload Pages artefact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+  publish-svg:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download generated SVG
+        uses: actions/download-artifact@v4
+        with:
+          name: snake-svg
+          path: dist
+
+      - name: Push SVG to the `output` branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Create an orphan worktree for the `output` branch so master history stays clean.
+          git fetch origin output || true
+          if git ls-remote --exit-code --heads origin output >/dev/null; then
+            git worktree add -B output output-branch origin/output
+          else
+            git worktree add --orphan -B output output-branch
+            (cd output-branch && git rm -rf . >/dev/null 2>&1 || true)
+          fi
+
+          cp dist/snake.svg output-branch/snake.svg
+          cd output-branch
+          git add snake.svg
+          if git diff --cached --quiet; then
+            echo "snake.svg unchanged — nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore(output): refresh snake.svg [skip ci]"
+          git push origin output
+
+  deploy-pages:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
