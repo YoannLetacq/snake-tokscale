@@ -1,0 +1,37 @@
+{
+  "user": {
+    "username": "testuser",
+    "displayName": "Test User"
+  },
+  "dateRange": {
+    "start": "2026-01-12",
+    "end": "2026-04-08"
+  },
+  "contributions": [
+    {
+      "date": "2026-04-08",
+      "totals": {"tokens": 2940221, "cost": 2.6323, "messages": 0},
+      "intensity": 1
+    },
+    {
+      "date": "2026-04-07",
+      "totals": {"tokens": 3571340, "cost": 4.3281, "messages": 0},
+      "intensity": 1
+    },
+    {
+      "date": "2026-03-26",
+      "totals": {"tokens": 30642664, "cost": 20.8703, "messages": 0},
+      "intensity": 4
+    },
+    {
+      "date": "2026-03-25",
+      "totals": {"tokens": 20774513, "cost": 13.4384, "messages": 0},
+      "intensity": 3
+    },
+    {
+      "date": "2026-01-12",
+      "totals": {"tokens": 54306, "cost": 0.226, "messages": 0},
+      "intensity": 1
+    }
+  ]
+}

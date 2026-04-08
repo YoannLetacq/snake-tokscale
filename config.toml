@@ -5,7 +5,7 @@
 # GitHub-style username fetched from https://tokscale.ai/api/users/<username>
 username = "YoannLetacq"
 # API base URL (overridable for tests / staging).
-api_base = "https://tokscale.ai/api"
+api_base = "https://tokscale.ai"
 # HTTP timeout in seconds.
 timeout = 30
 
