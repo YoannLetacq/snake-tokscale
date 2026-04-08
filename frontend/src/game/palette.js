@@ -1,0 +1,25 @@
+// Tokscale-inspired palette: 5 levels from empty to hottest.
+// Tuned to look OK on the dark background of the GH Pages site.
+export const LEVEL_COLORS = [
+  '#161b22', // 0 — empty
+  '#0e4429', // 1
+  '#006d32', // 2
+  '#26a641', // 3
+  '#39d353', // 4
+]
+
+export const SNAKE_COLOR = '#e84749'
+export const SNAKE_HEAD_COLOR = '#ff7b72'
+export const FOOD_COLOR = '#ffffff'
+export const FOOD_HALO = '#f1e05a'
+
+export const CELL_SIZE = 12
+export const CELL_GAP = 2
+
+export function cellX(col) {
+  return col * (CELL_SIZE + CELL_GAP)
+}
+
+export function cellY(row) {
+  return row * (CELL_SIZE + CELL_GAP)
+}
