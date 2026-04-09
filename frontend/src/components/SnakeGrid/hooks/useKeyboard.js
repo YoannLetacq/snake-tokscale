@@ -10,14 +10,17 @@ const DIRECTION_KEYS = {
 const GAMEPLAY_KEYS = new Set([...Object.keys(DIRECTION_KEYS), ' ', 'Space'])
 
 // Global keyboard listener: Space starts/retries, arrows change direction.
-export function useKeyboard(dispatch) {
+// `onRestart` is fired on Space so the host can re-seed the reducer with
+// the original grid cells — dispatching a bare {type:'START'} would let
+// startGame fall back to the (already-eaten) state.cells and instant-win.
+export function useKeyboard(dispatch, onRestart) {
   useEffect(() => {
     const handler = (event) => {
       if (GAMEPLAY_KEYS.has(event.key)) {
         event.preventDefault()
       }
       if (event.key === ' ' || event.key === 'Space') {
-        dispatch({ type: 'START' })
+        onRestart()
         return
       }
       const direction = DIRECTION_KEYS[event.key]
@@ -27,5 +30,5 @@ export function useKeyboard(dispatch) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [dispatch])
+  }, [dispatch, onRestart])
 }

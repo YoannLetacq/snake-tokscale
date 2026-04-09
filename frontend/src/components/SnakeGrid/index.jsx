@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer } from 'react'
+import { useCallback, useEffect, useMemo, useReducer } from 'react'
 import Grid from './Grid.jsx'
 import Snake from './Snake.jsx'
 import HUD from './HUD.jsx'
@@ -46,8 +46,16 @@ export default function SnakeGrid({ gridData }) {
     () => createInitialState({ weeks, winScore, best: loadBest(storageKey), cells: initialCells }),
   )
 
+  // Restart helper that always re-seeds the reducer with the original grid
+  // and current winScore. Used by Space (useKeyboard) and the gridData
+  // bootstrap effect — both must avoid the bare {type:'START'} dispatch
+  // that would fall back to the already-eaten state.cells.
+  const restart = useCallback(() => {
+    dispatch({ type: 'START', cells: initialCells, winScore })
+  }, [initialCells, winScore])
+
   useGameLoop(state.status, tickMs, dispatch)
-  useKeyboard(dispatch)
+  useKeyboard(dispatch, restart)
 
   useEffect(() => {
     persistBest(storageKey, state.best)
@@ -56,13 +64,10 @@ export default function SnakeGrid({ gridData }) {
   // Wait for grid.json to land before starting the game. Starting with the
   // all-level-0 fallback would make the reducer's "every cell level === 0"
   // win check instantly return true and freeze the player on the WON screen.
-  // We also forward the freshly computed winScore so the reducer state
-  // tracks reality (it was captured as 0 by the lazy useReducer initializer
-  // at first mount, when gridData was still null).
   useEffect(() => {
     if (!gridData) return
-    dispatch({ type: 'START', cells: initialCells, winScore })
-  }, [gridData, initialCells, winScore])
+    restart()
+  }, [gridData, restart])
 
   const svgWidth = weeks * (CELL_SIZE + CELL_GAP) - CELL_GAP + MARGIN_LEFT
   const svgHeight = ROWS * (CELL_SIZE + CELL_GAP) - CELL_GAP + MARGIN_TOP
