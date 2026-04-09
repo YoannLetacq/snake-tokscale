@@ -1,5 +1,6 @@
 # snake-tokscale — application configuration
 # All non-secret settings live here. Secrets (if any) go in .env (gitignored).
+# Editing this file triggers the refresh-and-deploy workflow on push to master.
 
 [tokscale]
 # GitHub-style username fetched from https://tokscale.ai/api/users/<username>
