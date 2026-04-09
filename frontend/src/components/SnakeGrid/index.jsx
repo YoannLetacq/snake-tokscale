@@ -56,11 +56,13 @@ export default function SnakeGrid({ gridData }) {
   // Wait for grid.json to land before starting the game. Starting with the
   // all-level-0 fallback would make the reducer's "every cell level === 0"
   // win check instantly return true and freeze the player on the WON screen.
-  // Whenever a fresh grid arrives we (re)start with the real cells.
+  // We also forward the freshly computed winScore so the reducer state
+  // tracks reality (it was captured as 0 by the lazy useReducer initializer
+  // at first mount, when gridData was still null).
   useEffect(() => {
     if (!gridData) return
-    dispatch({ type: 'START', cells: initialCells })
-  }, [gridData, initialCells])
+    dispatch({ type: 'START', cells: initialCells, winScore })
+  }, [gridData, initialCells, winScore])
 
   const svgWidth = weeks * (CELL_SIZE + CELL_GAP) - CELL_GAP + MARGIN_LEFT
   const svgHeight = ROWS * (CELL_SIZE + CELL_GAP) - CELL_GAP + MARGIN_TOP

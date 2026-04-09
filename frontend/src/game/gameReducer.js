@@ -63,6 +63,11 @@ export function gameReducer(state, action) {
 function startGame(state, action) {
   const snake = startingSnake(state.weeks)
   const cells = action.cells ? [...action.cells] : [...state.cells]
+  // Refresh winScore from the action when provided. The host component
+  // computes it from the freshly loaded grid.json — without this, the
+  // reducer would keep the stale 0 captured at first mount (when grid.json
+  // had not yet arrived) and the win check could never fire.
+  const winScore = action.winScore ?? state.winScore
   return {
     ...state,
     status: STATUS.PLAYING,
@@ -71,6 +76,7 @@ function startGame(state, action) {
     pendingDir: INITIAL_DIRECTION,
     cells,
     score: 0,
+    winScore,
   }
 }
 

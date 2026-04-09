@@ -100,6 +100,28 @@ describe('gameReducer', () => {
     expect(state.best).toBe(1)
   })
 
+  it('does not instant-win when started with a zero-marker fallback grid', () => {
+    // Reproduces the production race: the host mounts before grid.json
+    // has loaded, so winScore is captured as 0 and cells are all level 0.
+    // The reducer must not transition straight to WON on the first tick.
+    const fallback = createMockCells(baseWeeks)
+    const initial = createInitialState({ weeks: baseWeeks, winScore: 0, cells: fallback })
+    let state = gameReducer(initial, { type: 'START' })
+    state = gameReducer(state, { type: 'TICK' })
+    expect(state.status).toBe(STATUS.PLAYING)
+  })
+
+  it('START refreshes winScore from the action payload', () => {
+    // The host re-dispatches START with the real winScore once grid.json
+    // arrives — the reducer state must pick it up so wins become possible.
+    const fallback = createMockCells(baseWeeks)
+    const initial = createInitialState({ weeks: baseWeeks, winScore: 0, cells: fallback })
+    const real = createMockCells(baseWeeks, [{ x: 5, y: 3 }, { x: 6, y: 3 }])
+    const started = gameReducer(initial, { type: 'START', cells: real, winScore: 2 })
+    expect(started.winScore).toBe(2)
+    expect(started.status).toBe(STATUS.PLAYING)
+  })
+
   it('RESET returns to IDLE but preserves best', () => {
     let state = gameReducer(init(), { type: 'START' })
     state = { ...state, best: 7 }
