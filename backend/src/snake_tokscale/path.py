@@ -1,8 +1,7 @@
 """Snake path generation over the grid.
 
-The snake follows a randomized greedy path: it tries to move towards the nearest
-contribution marker while avoiding its own recent tail. If no markers remain,
-it wanders randomly.
+The snake follows a randomized greedy path that prioritizes contribution markers
+while strictly avoiding self-collision.
 """
 
 from __future__ import annotations
@@ -18,39 +17,43 @@ def build_snake_path(
     seed: int | None = None,
     max_steps: int = 500,
 ) -> tuple[list[Coord], list[int]]:
-    """Return a path and a list of step indices where markers were eaten."""
+    """Return a path and hit indices, strictly avoiding self-collision."""
     if weeks <= 0 or rows <= 0:
         raise ValueError("weeks and rows must be positive")
 
     rng = random.Random(seed)
     markers = _extract_markers(cells, rows)
-
     if not markers:
         return [(0, 0)], []
 
-    start = _pick_start_pos(markers, rows, rng)
-    path = [start]
-    visited = {start} if start in markers else set()
-    hits = [0] if start in markers else []
+    curr = _pick_start_pos(markers, rows, rng)
+    # State tracking
+    state = {
+        "path": [curr],
+        "hits": [0] if curr in markers else [],
+        "visited": {curr} if curr in markers else set(),
+        "len": 5 if curr in markers else 4
+    }
 
-    curr = start
     for step in range(1, max_steps):
-        targets = markers - visited
+        targets = markers - state["visited"]
         if not targets:
             break
 
-        neighbors = _get_neighbors(curr, weeks, rows, path)
+        body = set(state["path"][-state["len"]:])
+        neighbors = _get_safe_neighbors(curr, weeks, rows, body)
         if not neighbors:
             break
 
         curr = _pick_best_neighbor(neighbors, targets, rng)
-        path.append(curr)
+        state["path"].append(curr)
 
         if curr in markers:
-            visited.add(curr)
-            hits.append(step)
+            state["visited"].add(curr)
+            state["hits"].append(step)
+            state["len"] += 1
 
-    return path, hits
+    return state["path"], state["hits"]
 
 
 def _pick_start_pos(markers: set[Coord], rows: int, rng: random.Random) -> Coord:
@@ -72,14 +75,13 @@ def _extract_markers(cells: list[dict], rows: int) -> set[Coord]:
     return markers
 
 
-def _get_neighbors(curr: Coord, weeks: int, rows: int, path: list[Coord]) -> list[Coord]:
+def _get_safe_neighbors(curr: Coord, weeks: int, rows: int, body: set[Coord]) -> list[Coord]:
     neighbors = []
     for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
         nx, ny = curr[0] + dx, curr[1] + dy
         if 0 <= nx < weeks and 0 <= ny < rows:
-            if len(path) > 1 and (nx, ny) == path[-2]:
-                continue
-            neighbors.append((nx, ny))
+            if (nx, ny) not in body:
+                neighbors.append((nx, ny))
     return neighbors
 
 
