@@ -7,28 +7,34 @@ accepts ``<svg>``, ``<rect>``, ``<g>``, and ``<animate>`` (SMIL).
 """
 
 from __future__ import annotations
+from datetime import datetime
 
 from snake_tokscale.normalize import Cell
 
 ROWS = 7
 CELL_SIZE = 12
 CELL_GAP = 2
-GRID_PAD = 10
+GRID_PAD_TOP = 25
+GRID_PAD_LEFT = 35
+GRID_PAD_RIGHT = 10
+GRID_PAD_BOTTOM = 10
 
-# 5-level palette, tuned for dark backgrounds.
+# 5-level palette, tuned for dark backgrounds (tokscale purple).
 LEVEL_COLORS = (
     "#161b22",  # 0 — empty
-    "#0e4429",  # 1
-    "#006d32",  # 2
-    "#26a641",  # 3
-    "#39d353",  # 4
+    "#3d2b5b",  # 1
+    "#62448b",  # 2
+    "#8959bc",  # 3
+    "#b388eb",  # 4
 )
+
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
 def svg_dimensions(weeks: int) -> tuple[int, int]:
     """Return the ``(width, height)`` of the SVG canvas for ``weeks`` columns."""
-    width = weeks * (CELL_SIZE + CELL_GAP) - CELL_GAP + 2 * GRID_PAD
-    height = ROWS * (CELL_SIZE + CELL_GAP) - CELL_GAP + 2 * GRID_PAD
+    width = weeks * (CELL_SIZE + CELL_GAP) - CELL_GAP + GRID_PAD_LEFT + GRID_PAD_RIGHT
+    height = ROWS * (CELL_SIZE + CELL_GAP) - CELL_GAP + GRID_PAD_TOP + GRID_PAD_BOTTOM
     return width, height
 
 
@@ -43,15 +49,47 @@ def iter_cell_positions(cells: list[Cell]):
         yield col, row, x, y, level, cell
 
 
-def svg_header(weeks: int, background: str = "#0d1117") -> list[str]:
-    """Return the opening ``<svg>`` / background / translate ``<g>`` fragments."""
+def svg_header(weeks: int, cells: list[Cell] | None = None, background: str = "#0d1117") -> list[str]:
+    """Return the opening ``<svg>`` / background / labels / translate ``<g>`` fragments."""
     width, height = svg_dimensions(weeks)
-    return [
+    parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
         f'<rect class="bg" width="{width}" height="{height}" fill="{background}"/>',
-        f'<g class="cells" transform="translate({GRID_PAD},{GRID_PAD})">',
+        f'<g class="labels" style="font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif; font-size: 9px; fill: #8b949e;">',
     ]
+
+    # Day labels
+    parts.append(f'<text x="{GRID_PAD_LEFT - 25}" y="{GRID_PAD_TOP + cell_y(1) + 9}">Mon</text>')
+    parts.append(f'<text x="{GRID_PAD_LEFT - 25}" y="{GRID_PAD_TOP + cell_y(3) + 9}">Wed</text>')
+    parts.append(f'<text x="{GRID_PAD_LEFT - 25}" y="{GRID_PAD_TOP + cell_y(5) + 9}">Fri</text>')
+
+    # Month labels
+    if cells:
+        last_month = -1
+        for col in range(weeks):
+            cell = cells[col * ROWS]
+            if cell.get("date"):
+                try:
+                    dt = datetime.fromisoformat(cell["date"])
+                    month = dt.month - 1
+                    if month != last_month:
+                        parts.append(f'<text x="{GRID_PAD_LEFT + cell_x(col)}" y="{GRID_PAD_TOP - 8}">{MONTHS[month]}</text>')
+                        last_month = month
+                except ValueError:
+                    pass
+
+    parts.append("</g>")
+    parts.append(f'<g class="cells" transform="translate({GRID_PAD_LEFT},{GRID_PAD_TOP})">')
+    return parts
+
+
+def cell_x(col: int) -> int:
+    return col * (CELL_SIZE + CELL_GAP)
+
+
+def cell_y(row: int) -> int:
+    return row * (CELL_SIZE + CELL_GAP)
 
 
 def render_grid_svg(cells: list[Cell], weeks: int) -> str:
@@ -60,7 +98,7 @@ def render_grid_svg(cells: list[Cell], weeks: int) -> str:
     if len(cells) != expected:
         raise ValueError(f"expected {expected} cells for {weeks} weeks, got {len(cells)}")
 
-    parts = svg_header(weeks)
+    parts = svg_header(weeks, cells=cells)
 
     for _col, _row, x, y, level, _cell in iter_cell_positions(cells):
         color = LEVEL_COLORS[level]

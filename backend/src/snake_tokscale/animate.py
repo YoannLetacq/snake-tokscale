@@ -39,7 +39,7 @@ def render_animated_snake(
         raise ValueError(f"expected {expected} cells for {weeks} weeks, got {len(cells)}")
 
     path = build_snake_path(weeks=weeks, rows=ROWS)
-    parts = svg_header(weeks, background=BACKGROUND_COLOR)
+    parts = svg_header(weeks, cells=cells, background=BACKGROUND_COLOR)
     parts.extend(_render_cells(cells, path, duration_s))
     parts.extend(_render_snake(path, snake_length, duration_s))
     parts.append("</g></svg>")

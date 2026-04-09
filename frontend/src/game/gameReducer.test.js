@@ -1,11 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import { STATUS, createInitialState, gameReducer } from './gameReducer.js'
+import { ROWS } from './gridMath.js'
 
-const baseConfig = { weeks: 10, winScore: 3 }
-const fixedRng = () => 0.999 // always picks a deterministic corner-ish cell
+const baseWeeks = 10
+const baseConfig = { weeks: baseWeeks, winScore: 3 }
 
-function init() {
-  return createInitialState(baseConfig)
+function createMockCells(weeks, markers = []) {
+  const cells = Array.from({ length: weeks * ROWS }, (_, i) => ({
+    date: '2024-01-01',
+    tokens: 0,
+    level: 0,
+    key: i,
+  }))
+  markers.forEach(({ x, y, level = 1 }) => {
+    cells[x * ROWS + y] = { ...cells[x * ROWS + y], level }
+  })
+  return cells
+}
+
+function init(cells = []) {
+  const actualCells = cells.length > 0 ? cells : createMockCells(baseWeeks)
+  return createInitialState({ ...baseConfig, cells: actualCells })
 }
 
 describe('gameReducer', () => {
@@ -16,67 +31,77 @@ describe('gameReducer', () => {
     expect(state.score).toBe(0)
   })
 
-  it('START transitions to PLAYING and spawns snake + food', () => {
-    const state = gameReducer(init(), { type: 'START', rng: fixedRng })
+  it('START transitions to PLAYING and spawns snake', () => {
+    const state = gameReducer(init(), { type: 'START' })
     expect(state.status).toBe(STATUS.PLAYING)
     expect(state.snake.length).toBe(3)
-    expect(state.food).not.toBeNull()
   })
 
   it('TICK moves the snake one cell in current direction', () => {
-    const started = gameReducer(init(), { type: 'START', rng: fixedRng })
+    const started = gameReducer(init(), { type: 'START' })
     const before = started.snake[started.snake.length - 1]
-    const after = gameReducer(started, { type: 'TICK', rng: fixedRng })
+    const after = gameReducer(started, { type: 'TICK' })
     const newHead = after.snake[after.snake.length - 1]
     expect(newHead.x).toBe(before.x + 1)
     expect(newHead.y).toBe(before.y)
   })
 
   it('CHANGE_DIR rejects 180° reverse', () => {
-    const started = gameReducer(init(), { type: 'START', rng: fixedRng })
+    const started = gameReducer(init(), { type: 'START' })
     const changed = gameReducer(started, { type: 'CHANGE_DIR', direction: 'LEFT' })
     expect(changed.pendingDir).toBe(started.dir)
   })
 
   it('CHANGE_DIR accepts perpendicular directions', () => {
-    const started = gameReducer(init(), { type: 'START', rng: fixedRng })
+    const started = gameReducer(init(), { type: 'START' })
     const changed = gameReducer(started, { type: 'CHANGE_DIR', direction: 'UP' })
     expect(changed.pendingDir).toBe('UP')
   })
 
   it('wall collision → LOST', () => {
-    let state = gameReducer(init(), { type: 'START', rng: fixedRng })
+    // Fill all cells with 1 marker to avoid early WON
+    const cells = createMockCells(baseWeeks, [{ x: 9, y: 0 }])
+    let state = gameReducer(init(cells), { type: 'START' })
     for (let i = 0; i < 100; i += 1) {
-      state = gameReducer(state, { type: 'TICK', rng: fixedRng })
+      state = gameReducer(state, { type: 'TICK' })
       if (state.status === STATUS.LOST) break
     }
     expect(state.status).toBe(STATUS.LOST)
     expect(state.best).toBeGreaterThanOrEqual(0)
   })
 
-  it('eating food grows snake and increments score', () => {
-    let state = gameReducer(init(), { type: 'START', rng: fixedRng })
-    // Force food right in front of the head to make the next tick an eat.
-    const head = state.snake[state.snake.length - 1]
-    state = { ...state, food: { x: head.x + 1, y: head.y } }
+  it('eating marker grows snake and increments score', () => {
+    const started = gameReducer(init(), { type: 'START' })
+    const head = started.snake[started.snake.length - 1]
+    // Place a marker right in front of the head
+    const markerPos = { x: head.x + 1, y: head.y }
+    const cellsWithMarker = createMockCells(baseWeeks, [markerPos, { x: 0, y: 0 }])
+    
+    let state = gameReducer(init(cellsWithMarker), { type: 'START' })
     const before = state.snake.length
-    const after = gameReducer(state, { type: 'TICK', rng: fixedRng })
-    expect(after.snake.length).toBe(before + 1)
-    expect(after.score).toBe(1)
-    expect(after.food).not.toBeNull()
+    
+    state = gameReducer(state, { type: 'TICK' })
+    expect(state.snake.length).toBe(before + 1)
+    expect(state.score).toBe(1)
+    expect(state.cells[markerPos.x * ROWS + markerPos.y].level).toBe(0)
   })
 
-  it('reaching winScore → WON', () => {
-    let state = gameReducer({ ...init(), winScore: 1 }, { type: 'START', rng: fixedRng })
-    const head = state.snake[state.snake.length - 1]
-    state = { ...state, food: { x: head.x + 1, y: head.y } }
-    state = gameReducer(state, { type: 'TICK', rng: fixedRng })
+  it('eating all markers → WON', () => {
+    const started = gameReducer(init(), { type: 'START' })
+    const head = started.snake[started.snake.length - 1]
+    // Only ONE marker in the whole grid, right in front of head
+    const markerPos = { x: head.x + 1, y: head.y }
+    const cells = createMockCells(baseWeeks, [markerPos])
+    
+    let state = gameReducer(init(cells), { type: 'START' })
+    state = gameReducer(state, { type: 'TICK' })
+    
     expect(state.status).toBe(STATUS.WON)
     expect(state.best).toBe(1)
   })
 
   it('RESET returns to IDLE but preserves best', () => {
-    let state = gameReducer(init(), { type: 'START', rng: fixedRng })
+    let state = gameReducer(init(), { type: 'START' })
     state = { ...state, best: 7 }
     const reset = gameReducer(state, { type: 'RESET' })
     expect(reset.status).toBe(STATUS.IDLE)

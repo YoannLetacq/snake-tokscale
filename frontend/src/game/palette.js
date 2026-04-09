@@ -1,11 +1,10 @@
-// Tokscale-inspired palette: 5 levels from empty to hottest.
-// Tuned to look OK on the dark background of the GH Pages site.
+// Tokscale-inspired palette: 5 levels from empty to hottest (purple).
 export const LEVEL_COLORS = [
   '#161b22', // 0 — empty
-  '#0e4429', // 1
-  '#006d32', // 2
-  '#26a641', // 3
-  '#39d353', // 4
+  '#3d2b5b', // 1
+  '#62448b', // 2
+  '#8959bc', // 3
+  '#b388eb', // 4
 ]
 
 export const SNAKE_COLOR = '#e84749'

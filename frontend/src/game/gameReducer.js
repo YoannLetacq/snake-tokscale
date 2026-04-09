@@ -1,10 +1,9 @@
 import { ROWS, equal, inBounds, isOpposite, move } from './gridMath.js'
-import { spawnFood } from './foodSpawn.js'
 
 // Game state machine:
 //   IDLE  --START-->   PLAYING
 //   PLAYING --collision--> LOST
-//   PLAYING --score>=winScore--> WON
+//   PLAYING --all cells eaten--> WON
 //   LOST / WON --START--> PLAYING
 
 const INITIAL_DIRECTION = 'RIGHT'
@@ -17,7 +16,7 @@ export const STATUS = {
   WON: 'WON',
 }
 
-export function createInitialState({ weeks, winScore, best = 0 } = {}) {
+export function createInitialState({ weeks, winScore, best = 0, cells = [] } = {}) {
   return {
     status: STATUS.IDLE,
     weeks,
@@ -25,7 +24,7 @@ export function createInitialState({ weeks, winScore, best = 0 } = {}) {
     snake: [],
     dir: INITIAL_DIRECTION,
     pendingDir: INITIAL_DIRECTION,
-    food: null,
+    cells: [...cells], // The heatmap itself is the game map
     score: 0,
     best,
   }
@@ -54,6 +53,7 @@ export function gameReducer(state, action) {
         weeks: state.weeks,
         winScore: state.winScore,
         best: state.best,
+        cells: state.cells, // Use original if possible, but START will overwrite
       })
     default:
       return state
@@ -62,14 +62,14 @@ export function gameReducer(state, action) {
 
 function startGame(state, action) {
   const snake = startingSnake(state.weeks)
-  const rng = action?.rng
+  const cells = action.cells ? [...action.cells] : [...state.cells]
   return {
     ...state,
     status: STATUS.PLAYING,
     snake,
     dir: INITIAL_DIRECTION,
     pendingDir: INITIAL_DIRECTION,
-    food: spawnFood(state.weeks, snake, rng),
+    cells,
     score: 0,
   }
 }
@@ -89,10 +89,15 @@ function tick(state, action) {
   if (!inBounds(state.weeks, head)) {
     return loseGame(state)
   }
+
+  // Check if head is on a contribution marker
+  const cellIdx = head.x * ROWS + head.y
+  const cell = state.cells[cellIdx]
+  const eating = cell && cell.level > 0
+
   // Self-collision: new head hits any body cell that will remain on the board
   // on the next tick. The tail moves away unless we're eating, so the last
   // body cell can be re-occupied except when we grow.
-  const eating = state.food && equal(head, state.food)
   const body = eating ? state.snake : state.snake.slice(1)
   if (body.some((c) => equal(c, head))) {
     return loseGame(state)
@@ -100,16 +105,24 @@ function tick(state, action) {
 
   const snake = eating ? [...state.snake, head] : [...state.snake.slice(1), head]
   const score = eating ? state.score + 1 : state.score
-  const food = eating ? spawnFood(state.weeks, snake, action?.rng) : state.food
+  
+  let cells = state.cells
+  if (eating) {
+    cells = [...state.cells]
+    cells[cellIdx] = { ...cell, level: 0, tokens: 0 }
+  }
 
-  if (score >= state.winScore) {
+  // Win condition: no more markers with level > 0
+  const win = cells.every((c) => c.level === 0)
+
+  if (win) {
     return {
       ...state,
       status: STATUS.WON,
       dir,
       pendingDir: dir,
       snake,
-      food: null,
+      cells,
       score,
       best: Math.max(state.best, score),
     }
@@ -120,7 +133,7 @@ function tick(state, action) {
     dir,
     pendingDir: dir,
     snake,
-    food,
+    cells,
     score,
   }
 }

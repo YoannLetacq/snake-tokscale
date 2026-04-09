@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useReducer } from 'react'
 import Grid from './Grid.jsx'
 import Snake from './Snake.jsx'
-import Food from './Food.jsx'
 import HUD from './HUD.jsx'
 import Overlays from './Overlays.jsx'
 import { useGameLoop } from './hooks/useGameLoop.js'
@@ -12,6 +11,9 @@ import { ROWS } from '../../game/gridMath.js'
 
 const GAME_CONFIG = typeof __GAME_CONFIG__ !== 'undefined' ? __GAME_CONFIG__ : globalThis.__GAME_CONFIG__
 const GRID_CONFIG = typeof __GRID_CONFIG__ !== 'undefined' ? __GRID_CONFIG__ : globalThis.__GRID_CONFIG__
+
+const MARGIN_LEFT = 30
+const MARGIN_TOP = 20
 
 function loadBest(storageKey) {
   if (typeof window === 'undefined') return 0
@@ -27,14 +29,21 @@ function persistBest(storageKey, best) {
 
 export default function SnakeGrid({ gridData }) {
   const weeks = gridData?.weeks ?? GRID_CONFIG?.weeks ?? 53
-  const winScore = GAME_CONFIG?.win_score ?? 50
+  const winScore = useMemo(() => {
+    // Calculate total markers as the win score
+    const cells = gridData?.cells ?? fallbackCells(weeks)
+    return cells.filter(c => c.level > 0).length
+  }, [gridData, weeks])
+  
   const tickMs = GAME_CONFIG?.tick_ms ?? 120
   const storageKey = GAME_CONFIG?.best_storage_key ?? 'snake-tokscale:best'
+
+  const initialCells = useMemo(() => gridData?.cells ?? fallbackCells(weeks), [gridData, weeks])
 
   const [state, dispatch] = useReducer(
     gameReducer,
     undefined,
-    () => createInitialState({ weeks, winScore, best: loadBest(storageKey) }),
+    () => createInitialState({ weeks, winScore, best: loadBest(storageKey), cells: initialCells }),
   )
 
   useGameLoop(state.status, tickMs, dispatch)
@@ -44,9 +53,15 @@ export default function SnakeGrid({ gridData }) {
     persistBest(storageKey, state.best)
   }, [state.best, storageKey])
 
-  const cells = useMemo(() => gridData?.cells ?? fallbackCells(weeks), [gridData, weeks])
-  const svgWidth = weeks * (CELL_SIZE + CELL_GAP) - CELL_GAP
-  const svgHeight = ROWS * (CELL_SIZE + CELL_GAP) - CELL_GAP
+  // Reset/Start game with current cells when status is IDLE
+  useEffect(() => {
+    if (state.status === 'IDLE') {
+      dispatch({ type: 'START', cells: initialCells })
+    }
+  }, [state.status, initialCells])
+
+  const svgWidth = weeks * (CELL_SIZE + CELL_GAP) - CELL_GAP + MARGIN_LEFT
+  const svgHeight = ROWS * (CELL_SIZE + CELL_GAP) - CELL_GAP + MARGIN_TOP
 
   return (
     <section
@@ -69,9 +84,10 @@ export default function SnakeGrid({ gridData }) {
           viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="block"
         >
-          <Grid cells={cells} weeks={weeks} />
-          <Snake snake={state.snake} />
-          <Food food={state.food} />
+          <g transform={`translate(${MARGIN_LEFT}, ${MARGIN_TOP})`}>
+            <Grid cells={state.cells} weeks={weeks} />
+            <Snake snake={state.snake} />
+          </g>
         </svg>
         <Overlays
           status={state.status}
