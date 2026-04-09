@@ -11,7 +11,7 @@ const configPath = resolve(__dirname, '..', 'config.toml')
 const rootConfig = parse(readFileSync(configPath, 'utf8'))
 
 export default defineConfig({
-  base: rootConfig.deploy?.base_path ?? '/snake-tokscale/',
+  base: './',
   plugins: [react(), tailwindcss()],
   define: {
     __GAME_CONFIG__: JSON.stringify(rootConfig.game ?? {}),
