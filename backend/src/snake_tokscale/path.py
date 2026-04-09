@@ -16,34 +16,50 @@ def build_snake_path(
     rows: int,
     cells: list[dict],
     seed: int | None = None,
-    max_steps: int = 200,
-) -> list[Coord]:
-    """Return a randomized greedy path visiting markers on a ``weeks × rows`` grid."""
+    max_steps: int = 500,
+) -> tuple[list[Coord], list[int]]:
+    """Return a path and a list of step indices where markers were eaten."""
     if weeks <= 0 or rows <= 0:
         raise ValueError("weeks and rows must be positive")
 
     rng = random.Random(seed)
     markers = _extract_markers(cells, rows)
 
-    curr = rng.choice(list(markers)) if markers else (0, 0)
-    path = [curr]
-    visited_markers = {curr} if curr in markers else set()
+    if not markers:
+        return [(0, 0)], []
 
-    for _ in range(max_steps):
-        targets = markers - visited_markers
+    start = _pick_start_pos(markers, rows, rng)
+    path = [start]
+    visited = {start} if start in markers else set()
+    hits = [0] if start in markers else []
+
+    curr = start
+    for step in range(1, max_steps):
+        targets = markers - visited
+        if not targets:
+            break
+
         neighbors = _get_neighbors(curr, weeks, rows, path)
         if not neighbors:
             break
 
         curr = _pick_best_neighbor(neighbors, targets, rng)
         path.append(curr)
+
         if curr in markers:
-            visited_markers.add(curr)
+            visited.add(curr)
+            hits.append(step)
 
-        if not targets and curr in markers:
-            break
+    return path, hits
 
-    return path
+
+def _pick_start_pos(markers: set[Coord], rows: int, rng: random.Random) -> Coord:
+    first_col = min(m[0] for m in markers)
+    if first_col > 17:
+        return (first_col - 13, rng.randint(0, rows - 1))
+    if rng.random() > 0.5:
+        return rng.choice(list(markers))
+    return (0, rng.randint(0, rows - 1))
 
 
 def _extract_markers(cells: list[dict], rows: int) -> set[Coord]:
