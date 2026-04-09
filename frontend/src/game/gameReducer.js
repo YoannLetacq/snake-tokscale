@@ -81,7 +81,7 @@ function changeDir(state, action) {
   return { ...state, pendingDir: next }
 }
 
-function tick(state, action) {
+function tick(state) {
   if (state.status !== STATUS.PLAYING) return state
   const dir = state.pendingDir
   const head = move(state.snake[state.snake.length - 1], dir)
