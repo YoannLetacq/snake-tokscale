@@ -49,7 +49,11 @@ def iter_cell_positions(cells: list[Cell]):
         yield col, row, x, y, level, cell
 
 
-def svg_header(weeks: int, cells: list[Cell] | None = None, background: str = "#0d1117") -> list[str]:
+def svg_header(
+    weeks: int,
+    cells: list[Cell] | None = None,
+    background: str = "#0d1117",
+) -> list[str]:
     """Return the opening ``<svg>`` / background / labels / translate ``<g>`` fragments."""
     width, height = svg_dimensions(weeks)
     parts = [
