@@ -21,11 +21,13 @@ class TestBuildSnakePath:
 
     def test_hits_identified_correctly(self):
         weeks, rows = 2, 7
-        # path[0] is (0,0), path[7] is (1,6) in boustrophedon
-        cells = _mock_cells(weeks, rows, [(0, 0), (1, 6)])
-        _, hits = build_snake_path(weeks=weeks, rows=rows, cells=cells)
-        assert 0 in hits
-        assert 7 in hits
+        markers = {(0, 0), (1, 6)}
+        cells = _mock_cells(weeks, rows, list(markers))
+        path, hits = build_snake_path(weeks=weeks, rows=rows, cells=cells, seed=42)
+        # Hits must line up with the actual marker positions along the path,
+        # regardless of which random trajectory the DFS produced.
+        expected = sorted(i for i, coord in enumerate(path) if coord in markers)
+        assert sorted(hits) == expected
         assert len(hits) == 2
 
     def test_path_stays_in_bounds(self):

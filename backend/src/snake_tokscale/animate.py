@@ -1,7 +1,8 @@
 """Render an animated snake SVG that traverses the tokscale heatmap.
 
-The output uses SMIL ``<animate>`` tags. The snake follows a guaranteed Hamiltonian
-path (boustrophedon sweep) to ensure it always clears all markers and wins.
+The output uses SMIL ``<animate>`` tags. The snake follows a randomized
+Hamiltonian path (see :mod:`snake_tokscale.path`) that spawns at a random
+cell and never crosses itself, while still clearing every marker and winning.
 """
 
 from __future__ import annotations
