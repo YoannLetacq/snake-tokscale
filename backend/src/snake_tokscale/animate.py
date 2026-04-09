@@ -37,6 +37,7 @@ def render_animated_snake(
     if len(cells) != expected:
         raise ValueError(f"expected {expected} cells for {weeks} weeks, got {len(cells)}")
 
+    # Use current time as seed for randomization on each run
     seed = int(time.time())
     path, hits = build_snake_path(weeks=weeks, rows=ROWS, cells=cells, seed=seed)
 
@@ -84,6 +85,7 @@ def _build_path_index(path: list[tuple[int, int]]) -> dict[tuple[int, int], int]
 def _fade_animation(step: int, steps: int, base_color: str, duration_s: float) -> str:
     """Return a ``<animate>`` fragment that fades a cell to the empty palette."""
     when = min(max(step / max(steps - 1, 1), 0.0001), 0.9999)
+    # Transition duration: ~2 steps
     step_pct = 1.0 / steps
     end_pct = min(when + step_pct * 2, 1.0)
 
@@ -107,18 +109,19 @@ def _render_snake(
     y_values = [str(row * (CELL_SIZE + CELL_GAP) + 1) for _, row in path]
     steps = len(path)
 
-    # Map for helper to avoid too many arguments
+    # Starting length is 4 (all appear at step 0).
+    # Then each marker hit (hits) adds one more segment.
+    appearance_steps = [0, 0, 0, 0] + hits
+
+    # Cap segments to avoid massive SVGs.
+    max_segments = min(len(appearance_steps), 50)
+
     path_data = {
         "x": x_values,
         "y": y_values,
         "steps": steps,
         "duration": duration_s
     }
-
-    # Starts with head (seg 0), grows for each hit (seg 1..len(hits)).
-    # Cap at 50 to avoid massive SVGs.
-    max_segments = min(len(hits) + 1, 50)
-    appearance_steps = [0] + hits
 
     for seg_idx in range(max_segments):
         start_step = appearance_steps[seg_idx]
@@ -132,30 +135,47 @@ def _render_segment(
     start_step: int,
     data: dict,
 ) -> str:
+    """Render a single snake segment with growth and non-wrapping trajectory."""
     steps = data["steps"]
     duration_s = data["duration"]
+
+    # Non-wrapping trajectory logic:
+    # Segment stays at path[0] until its lag (seg_idx) allows it to follow the head.
     shifted_x = []
     shifted_y = []
     for i in range(steps):
-        idx = (i - seg_idx) % steps
-        shifted_x.append(data["x"][idx])
-        shifted_y.append(data["y"][idx])
+        if i < seg_idx:
+            # Still "inside" the starting position
+            shifted_x.append(data["x"][0])
+            shifted_y.append(data["y"][0])
+        else:
+            # Following the head with lag
+            shifted_x.append(data["x"][i - seg_idx])
+            shifted_y.append(data["y"][i - seg_idx])
 
     color = SNAKE_HEAD_COLOR if seg_idx == 0 else SNAKE_COLOR
     size = CELL_SIZE - 2
+
+    # Appearance time: when the head reaches the step that spawns this segment.
+    # We use opacity instead of visibility for smoother SMIL support in some viewers.
     start_pct = start_step / max(steps - 1, 1)
-    visibility = "visible" if seg_idx == 0 else "hidden"
+
+    # Start hidden if it's a "growth" segment (index >= 4)
+    opacity = "1" if seg_idx < 4 else "0"
 
     rect = (
         f'<rect class="snake-segment" width="{size}" height="{size}" rx="3" ry="3" '
-        f'fill="{color}" x="{shifted_x[0]}" y="{shifted_y[0]}" visibility="{visibility}">'
+        f'fill="{color}" x="{shifted_x[0]}" y="{shifted_y[0]}" opacity="{opacity}">'
     )
-    if seg_idx > 0:
+
+    if seg_idx >= 4:
+        # Growth segments become opaque at their appearance time
         rect += (
-            f'<animate attributeName="visibility" from="hidden" to="visible" '
-            f'begin="{start_pct * duration_s:.4f}s" dur="{duration_s:.4f}s" '
-            f'repeatCount="indefinite" fill="freeze"/>'
+            f'<animate attributeName="opacity" from="0" to="1" '
+            f'begin="{start_pct * duration_s:.4f}s" dur="0.001s" '
+            f'fill="freeze" repeatCount="indefinite"/>'
         )
+
     rect += (
         f'<animate attributeName="x" values="{";".join(shifted_x)}" '
         f'dur="{duration_s}s" repeatCount="indefinite" calcMode="discrete"/>'
