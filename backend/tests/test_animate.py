@@ -19,19 +19,19 @@ def _cells(n: int) -> list[Cell]:
 
 class TestRenderAnimatedSnake:
     def test_output_is_valid_svg(self):
-        svg = render_animated_snake(_cells(21), weeks=3, snake_length=4, duration_s=10.0)
+        svg = render_animated_snake(_cells(21), weeks=3, snake_length=4, _duration_s=10.0)
         root = ET.fromstring(svg)
         assert root.tag == f"{SVG_NS}svg"
 
     def test_contains_animate_elements(self):
-        svg = render_animated_snake(_cells(21), weeks=3, snake_length=4, duration_s=10.0)
+        svg = render_animated_snake(_cells(21), weeks=3, snake_length=4, _duration_s=10.0)
         root = ET.fromstring(svg)
         animates = root.findall(f".//{SVG_NS}animate")
         # At least one <animate> per snake segment (x + y) + cell fades.
         assert len(animates) >= 4 * 2
 
     def test_contains_snake_segments(self):
-        svg = render_animated_snake(_cells(21), weeks=3, snake_length=4, duration_s=10.0)
+        svg = render_animated_snake(_cells(21), weeks=3, snake_length=4, _duration_s=10.0)
         root = ET.fromstring(svg)
         snake_rects = [
             rect
@@ -44,4 +44,4 @@ class TestRenderAnimatedSnake:
         import pytest
 
         with pytest.raises(ValueError):
-            render_animated_snake(_cells(21), weeks=3, snake_length=0, duration_s=10.0)
+            render_animated_snake(_cells(21), weeks=3, snake_length=0, _duration_s=10.0)

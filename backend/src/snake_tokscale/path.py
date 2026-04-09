@@ -23,68 +23,63 @@ def build_snake_path(
         raise ValueError("weeks and rows must be positive")
 
     rng = random.Random(seed)
-    
-    # Identify target markers
+    markers = _extract_markers(cells, rows)
+
+    curr = rng.choice(list(markers)) if markers else (0, 0)
+    path = [curr]
+    visited_markers = {curr} if curr in markers else set()
+
+    for _ in range(max_steps):
+        targets = markers - visited_markers
+        neighbors = _get_neighbors(curr, weeks, rows, path)
+        if not neighbors:
+            break
+
+        curr = _pick_best_neighbor(neighbors, targets, rng)
+        path.append(curr)
+        if curr in markers:
+            visited_markers.add(curr)
+
+        if not targets and curr in markers:
+            break
+
+    return path
+
+
+def _extract_markers(cells: list[dict], rows: int) -> set[Coord]:
     markers = set()
     for idx, cell in enumerate(cells):
         if cell.get("level", 0) > 0:
             col = idx // rows
             row = idx % rows
             markers.add((col, row))
+    return markers
 
-    # Start at a random edge or a marker if none
-    if markers:
-        start = rng.choice(list(markers))
-    else:
-        start = (0, 0)
 
-    path = [start]
-    visited_markers = set()
-    if start in markers:
-        visited_markers.add(start)
+def _get_neighbors(curr: Coord, weeks: int, rows: int, path: list[Coord]) -> list[Coord]:
+    neighbors = []
+    for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+        nx, ny = curr[0] + dx, curr[1] + dy
+        if 0 <= nx < weeks and 0 <= ny < rows:
+            if len(path) > 1 and (nx, ny) == path[-2]:
+                continue
+            neighbors.append((nx, ny))
+    return neighbors
 
-    curr = start
-    for _ in range(max_steps):
-        # Remaining targets
-        targets = markers - visited_markers
-        
-        neighbors = []
-        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-            nx, ny = curr[0] + dx, curr[1] + dy
-            if 0 <= nx < weeks and 0 <= ny < rows:
-                # Avoid immediate backtracking (simple heuristic)
-                if len(path) > 1 and (nx, ny) == path[-2]:
-                    continue
-                neighbors.append((nx, ny))
 
-        if not neighbors:
-            break
+def _pick_best_neighbor(
+    neighbors: list[Coord],
+    targets: set[Coord],
+    rng: random.Random,
+) -> Coord:
+    scored = []
+    for n in neighbors:
+        score = 0
+        if targets:
+            dist = min(abs(n[0] - t[0]) + abs(n[1] - t[1]) for t in targets)
+            score -= dist * 10
+        score += rng.random() * 5
+        scored.append((score, n))
 
-        # Score neighbors: closer to nearest target is better
-        scored = []
-        for n in neighbors:
-            score = 0
-            if targets:
-                # Manhattan distance to nearest target
-                dist = min(abs(n[0] - t[0]) + abs(n[1] - t[1]) for t in targets)
-                score -= dist * 10
-            
-            # Add a bit of randomness to break ties and make it "alive"
-            score += rng.random() * 5
-            scored.append((score, n))
-
-        # Pick best neighbor
-        scored.sort(key=lambda x: x[0], reverse=True)
-        curr = scored[0][1]
-        
-        path.append(curr)
-        if curr in markers:
-            visited_markers.add(curr)
-            
-        # If all markers eaten, we can stop or keep wandering. 
-        # User said "attract by markers", so if none left, we stop.
-        if not targets and curr in markers:
-            # Add a few extra steps to show it leaving the last marker
-            pass
-
-    return path
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return scored[0][1]

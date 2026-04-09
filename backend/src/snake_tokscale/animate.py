@@ -28,7 +28,7 @@ def render_animated_snake(
     cells: list[Cell],
     weeks: int,
     snake_length: int = 4,
-    duration_s: float = 30.0,
+    _duration_s: float = 30.0,
 ) -> str:
     """Return an animated SVG snake traversing the heatmap defined by ``cells``."""
     if snake_length <= 0:
@@ -40,9 +40,8 @@ def render_animated_snake(
     # Use current time as seed for randomization on each run
     seed = int(time.time())
     path = build_snake_path(weeks=weeks, rows=ROWS, cells=cells, seed=seed)
-    
-    # Adjust duration based on path length if needed, or keep fixed
-    # One step every ~0.15s looks reasonable
+
+    # One step every ~0.15s
     actual_duration = len(path) * 0.15
 
     parts = svg_header(weeks, cells=cells, background=BACKGROUND_COLOR)
@@ -58,13 +57,7 @@ def _render_cells(
     duration_s: float,
 ) -> list[str]:
     """Emit ``<rect>`` elements for every heatmap cell with fade-out animations."""
-    steps = len(path)
-    # Only fade out the FIRST time the snake reaches a cell
-    path_index = {}
-    for i, coord in enumerate(path):
-        if coord not in path_index:
-            path_index[coord] = i
-            
+    path_index = _build_path_index(path)
     pieces: list[str] = []
 
     for col, row, x, y, level, _cell in iter_cell_positions(cells):
@@ -74,11 +67,19 @@ def _render_cells(
             f'rx="2" ry="2" fill="{base_color}">'
         )
         if level > 0 and (col, row) in path_index:
-            rect += _fade_animation(path_index[(col, row)], steps, base_color, duration_s)
+            rect += _fade_animation(path_index[(col, row)], len(path), base_color, duration_s)
         rect += "</rect>"
         pieces.append(rect)
 
     return pieces
+
+
+def _build_path_index(path: list[tuple[int, int]]) -> dict[tuple[int, int], int]:
+    index = {}
+    for i, coord in enumerate(path):
+        if coord not in index:
+            index[coord] = i
+    return index
 
 
 def _fade_animation(step: int, steps: int, base_color: str, duration_s: float) -> str:
@@ -87,7 +88,7 @@ def _fade_animation(step: int, steps: int, base_color: str, duration_s: float) -
     # Transition duration: ~2 steps
     step_pct = 1.0 / steps
     end_pct = min(when + step_pct * 2, 1.0)
-    
+
     return (
         f'<animate attributeName="fill" '
         f'dur="{duration_s}s" repeatCount="indefinite" '
@@ -109,15 +110,14 @@ def _render_snake(
 
     steps = len(path)
     for seg in range(snake_length):
-        # Segment ``seg`` lags behind the head by ``seg`` positions. 
-        # We wrap around for the animation loop.
+        # Segment ``seg`` lags behind the head by ``seg`` positions.
         shifted_x = []
         shifted_y = []
         for i in range(steps):
             idx = (i - seg) % steps
             shifted_x.append(x_values[idx])
             shifted_y.append(y_values[idx])
-            
+
         color = SNAKE_HEAD_COLOR if seg == 0 else SNAKE_COLOR
         size = CELL_SIZE - 2
         pieces.append(
