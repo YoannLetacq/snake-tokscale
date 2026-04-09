@@ -99,7 +99,7 @@ def _write_snake_svg(path: Path, cells, config: AppConfig) -> None:
         cells,
         weeks=config.grid.weeks,
         snake_length=config.svg.snake_length,
-        duration_s=config.svg.duration_s,
+        _duration_s=config.svg.duration_s,
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(svg, encoding="utf-8")
