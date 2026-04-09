@@ -1,13 +1,19 @@
 """Snake path generation over the grid.
 
 The snake follows a randomized Hamiltonian path built with a Warnsdorff-guided
-depth-first search: it starts from a random cell and, at each step, walks to
-an adjacent unvisited cell with the fewest onward moves (ties broken
-randomly). This guarantees:
+depth-first search. It starts from a random cell and, at each step, walks to
+an adjacent unvisited cell with the fewest onward moves (the Warnsdorff rule,
+which is what makes the Hamiltonian search converge). Ties on that primary
+score are broken by *Manhattan distance to the nearest uneaten marker* so the
+snake actively hunts food instead of wandering off, and remaining ties are
+broken randomly for varied trajectories.
+
+This guarantees:
 
 - no self-crossing (each cell is visited exactly once),
 - full coverage of the grid whenever a Hamiltonian path exists,
-- a different spawn point and varied, human-looking trajectories on every run.
+- a different spawn point and varied, human-looking trajectories on every run,
+- a preference for heading toward the closest marker.
 """
 
 from __future__ import annotations
@@ -31,6 +37,8 @@ class _DfsState:
     rng: random.Random
     path: list[Coord] = field(default_factory=list)
     visited: set[Coord] = field(default_factory=set)
+    remaining_markers: set[Coord] = field(default_factory=set)
+
 
 _DIRECTIONS: tuple[tuple[int, int], ...] = ((-1, 0), (1, 0), (0, -1), (0, 1))
 
@@ -53,9 +61,9 @@ def build_snake_path(
         raise ValueError("weeks and rows must be positive")
 
     rng = random.Random(seed)
-    majority_parity = _majority_parity(weeks, rows)
+    markers = _marker_positions(cells, rows)
 
-    path = _find_hamiltonian_path(weeks, rows, rng, majority_parity)
+    path = _find_hamiltonian_path(weeks, rows, rng, markers)
     if path is None:
         # Safety net: should be unreachable on realistic grid sizes, but keeps
         # the pipeline alive if Warnsdorff fails to converge.
@@ -68,6 +76,15 @@ def build_snake_path(
             hits.append(step)
 
     return path, hits
+
+
+def _marker_positions(cells: list[Cell], rows: int) -> set[Coord]:
+    """Return ``(col, row)`` of every cell whose level indicates a marker."""
+    markers: set[Coord] = set()
+    for idx, cell in enumerate(cells):
+        if cell.get("level", 0) > 0:
+            markers.add((idx // rows, idx % rows))
+    return markers
 
 
 def _majority_parity(weeks: int, rows: int) -> int | None:
@@ -94,11 +111,12 @@ def _find_hamiltonian_path(
     weeks: int,
     rows: int,
     rng: random.Random,
-    majority_parity: int | None,
+    markers: set[Coord],
     attempts: int = 24,
 ) -> list[Coord] | None:
     """Try several random starts; each attempt runs Warnsdorff-guided DFS."""
     total = weeks * rows
+    majority_parity = _majority_parity(weeks, rows)
     # Ensure the recursion depth can accommodate the DFS for this grid.
     prev_limit = sys.getrecursionlimit()
     sys.setrecursionlimit(max(prev_limit, total + 200))
@@ -114,6 +132,8 @@ def _find_hamiltonian_path(
                 continue  # wrong bipartite class — no Ham path from here
             tried += 1
             start: Coord = (start_col, start_row)
+            remaining = set(markers)
+            remaining.discard(start)  # spawning on a marker already eats it
             state = _DfsState(
                 weeks=weeks,
                 rows=rows,
@@ -121,6 +141,7 @@ def _find_hamiltonian_path(
                 rng=rng,
                 path=[start],
                 visited={start},
+                remaining_markers=remaining,
             )
             if _dfs(state):
                 return state.path
@@ -130,11 +151,11 @@ def _find_hamiltonian_path(
 
 
 def _dfs(state: _DfsState) -> bool:
-    """Warnsdorff-guided DFS: prefer neighbours with the fewest onward moves."""
+    """Warnsdorff DFS, tie-broken by distance to the nearest uneaten marker."""
     if len(state.path) == state.total:
         return True
     col, row = state.path[-1]
-    candidates: list[tuple[int, Coord]] = []
+    candidates: list[tuple[int, int, Coord]] = []
     for delta_col, delta_row in _DIRECTIONS:
         nxt = (col + delta_col, row + delta_row)
         if (
@@ -142,20 +163,38 @@ def _dfs(state: _DfsState) -> bool:
             and 0 <= nxt[1] < state.rows
             and nxt not in state.visited
         ):
-            candidates.append((_unvisited_degree(nxt, state), nxt))
+            degree = _unvisited_degree(nxt, state)
+            hunger = _nearest_marker_distance(nxt, state)
+            candidates.append((degree, hunger, nxt))
     if not candidates:
         return False
-    # Random tie-break, then stable sort on degree.
+    # Random shuffle first so cells that tie on both scores are picked
+    # varietly; stable sort then preserves the (degree, hunger) ranking.
     state.rng.shuffle(candidates)
-    candidates.sort(key=lambda item: item[0])
-    for _deg, nxt in candidates:
+    candidates.sort(key=lambda item: (item[0], item[1]))
+    for _deg, _hunger, nxt in candidates:
         state.visited.add(nxt)
         state.path.append(nxt)
+        marker_eaten = nxt in state.remaining_markers
+        if marker_eaten:
+            state.remaining_markers.discard(nxt)
         if _dfs(state):
             return True
+        if marker_eaten:
+            state.remaining_markers.add(nxt)
         state.visited.remove(nxt)
         state.path.pop()
     return False
+
+
+def _nearest_marker_distance(cell: Coord, state: _DfsState) -> int:
+    """Manhattan distance from ``cell`` to the closest remaining marker."""
+    if not state.remaining_markers:
+        return 0
+    col, row = cell
+    return min(
+        abs(col - mc) + abs(row - mr) for mc, mr in state.remaining_markers
+    )
 
 
 def _unvisited_degree(cell: Coord, state: _DfsState) -> int:

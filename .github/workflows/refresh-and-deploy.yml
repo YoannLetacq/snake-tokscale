@@ -53,8 +53,20 @@ jobs:
         working-directory: backend
         run: uv run pylint src/snake_tokscale
 
+      - name: Read previous palette (to force a different color)
+        id: prev-palette
+        run: |
+          prev=$(curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/output/snake.svg" 2>/dev/null \
+            | grep -oE '<!-- palette:[a-z]+ -->' \
+            | head -1 \
+            | sed -E 's/<!-- palette:([a-z]+) -->/\1/' || true)
+          echo "name=${prev}" >> "$GITHUB_OUTPUT"
+          echo "previous palette was: '${prev}'"
+
       - name: Generate grid.json and snake.svg
         id: generate
+        env:
+          SNAKE_TOKSCALE_EXCLUDE_PALETTE: ${{ steps.prev-palette.outputs.name }}
         run: |
           uv run --project backend python -m snake_tokscale \
             --config config.toml \

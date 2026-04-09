@@ -44,7 +44,9 @@ def render_animated_snake(
     # ~0.1s per step for a snappy animation that clears the whole board
     actual_duration = len(path) * 0.1
 
-    parts = svg_header(weeks, cells=cells, background=BACKGROUND_COLOR)
+    parts = svg_header(
+        weeks, cells=cells, background=BACKGROUND_COLOR, palette_name=palette.name
+    )
 
     # Global loop sync
     loop_anim = (

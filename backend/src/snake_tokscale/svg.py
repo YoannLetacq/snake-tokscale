@@ -4,11 +4,14 @@ Pure string assembly — no third-party SVG library needed.
 """
 
 from __future__ import annotations
+import os
 import random
 from datetime import datetime
 from dataclasses import dataclass
 
 from snake_tokscale.normalize import Cell
+
+EXCLUDE_PALETTE_ENV = "SNAKE_TOKSCALE_EXCLUDE_PALETTE"
 
 ROWS = 7
 CELL_SIZE = 12
@@ -54,14 +57,58 @@ PALETTES = (
         snake="#79c0ff",
         head="#a5d6ff",
     ),
+    Palette(
+        name="pink",
+        levels=("#161b22", "#4a1133", "#7a1f55", "#c93a8a", "#f279c7"),
+        snake="#7ee787",
+        head="#b8f5bf",
+    ),
+    Palette(
+        name="cyan",
+        levels=("#161b22", "#0b3b47", "#0d6b7d", "#14a3b8", "#5cd8e6"),
+        snake="#ffb454",
+        head="#ffd187",
+    ),
+    Palette(
+        name="crimson",
+        levels=("#161b22", "#4a0d14", "#7a121f", "#c1242e", "#f26a73"),
+        snake="#a5d6ff",
+        head="#d4e9ff",
+    ),
+    Palette(
+        name="lime",
+        levels=("#161b22", "#263d0e", "#4b6b18", "#87c225", "#c6f250"),
+        snake="#d2a8ff",
+        head="#e6ccff",
+    ),
 )
+
+
+_LAST_PALETTE_NAME: str | None = None
 
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 
-def get_random_palette() -> Palette:
-    """Return a random color scheme."""
-    return random.choice(PALETTES)
+def get_random_palette(exclude: str | None = None) -> Palette:
+    """Return a random color scheme, avoiding the previously used one.
+
+    Resolution order for the excluded palette name:
+    explicit ``exclude`` argument → last palette returned in this process →
+    ``SNAKE_TOKSCALE_EXCLUDE_PALETTE`` environment variable (used by CI to
+    thread the previous build's palette through).
+    """
+    global _LAST_PALETTE_NAME  # pylint: disable=global-statement
+    banned = exclude
+    if banned is None:
+        banned = _LAST_PALETTE_NAME
+    if banned is None:
+        banned = os.environ.get(EXCLUDE_PALETTE_ENV) or None
+    choices = tuple(p for p in PALETTES if p.name != banned)
+    if not choices:
+        choices = PALETTES
+    chosen = random.choice(choices)
+    _LAST_PALETTE_NAME = chosen.name
+    return chosen
 
 
 def svg_dimensions(weeks: int) -> tuple[int, int]:
@@ -87,13 +134,25 @@ def svg_header(
     weeks: int,
     cells: list[Cell] | None = None,
     background: str = "#0d1117",
+    palette_name: str | None = None,
 ) -> list[str]:
-    """Return the opening ``<svg>`` / background / labels / translate ``<g>`` fragments."""
+    """Return the opening ``<svg>`` / background / labels / translate ``<g>`` fragments.
+
+    ``palette_name`` is embedded as an SVG comment so downstream tools (the
+    GitHub Actions workflow) can read the previous build's palette and avoid
+    picking the same one on the next regeneration.
+    """
     width, height = svg_dimensions(weeks)
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
-        f'<rect class="bg" width="{width}" height="{height}" fill="{background}"/>',
+    ]
+    if palette_name:
+        parts.append(f'<!-- palette:{palette_name} -->')
+    parts.append(
+        f'<rect class="bg" width="{width}" height="{height}" fill="{background}"/>'
+    )
+    parts += [
         '<g class="labels" style="font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,'
         'Arial,sans-serif; font-size: 9px; fill: #8b949e;">',
     ]
@@ -141,7 +200,7 @@ def render_grid_svg(cells: list[Cell], weeks: int) -> str:
         raise ValueError(f"expected {expected} cells for {weeks} weeks, got {len(cells)}")
 
     palette = get_random_palette()
-    parts = svg_header(weeks, cells=cells)
+    parts = svg_header(weeks, cells=cells, palette_name=palette.name)
 
     for _col, _row, x, y, _level, color in iter_cell_positions(cells, palette):
         parts.append(
