@@ -56,7 +56,8 @@ def svg_header(weeks: int, cells: list[Cell] | None = None, background: str = "#
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
         f'<rect class="bg" width="{width}" height="{height}" fill="{background}"/>',
-        f'<g class="labels" style="font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif; font-size: 9px; fill: #8b949e;">',
+        '<g class="labels" style="font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,'
+        'Arial,sans-serif; font-size: 9px; fill: #8b949e;">',
     ]
 
     # Day labels
@@ -74,7 +75,9 @@ def svg_header(weeks: int, cells: list[Cell] | None = None, background: str = "#
                     dt = datetime.fromisoformat(cell["date"])
                     month = dt.month - 1
                     if month != last_month:
-                        parts.append(f'<text x="{GRID_PAD_LEFT + cell_x(col)}" y="{GRID_PAD_TOP - 8}">{MONTHS[month]}</text>')
+                        x = GRID_PAD_LEFT + cell_x(col)
+                        y = GRID_PAD_TOP - 8
+                        parts.append(f'<text x="{x}" y="{y}">{MONTHS[month]}</text>')
                         last_month = month
                 except ValueError:
                     pass
