@@ -12,23 +12,33 @@ def _mock_cells(weeks, rows, markers=None):
     return cells
 
 class TestBuildSnakePath:
-    def test_path_not_empty(self):
-        cells = _mock_cells(5, 7, [(1, 1)])
-        path, hits = build_snake_path(weeks=5, rows=7, cells=cells)
-        assert len(path) > 0
-        assert len(hits) == 1
+    def test_path_covers_all_cells(self):
+        weeks, rows = 5, 7
+        cells = _mock_cells(weeks, rows, [(1, 1)])
+        path, _ = build_snake_path(weeks=weeks, rows=rows, cells=cells)
+        assert len(path) == weeks * rows
+        assert len(set(path)) == weeks * rows
+
+    def test_hits_identified_correctly(self):
+        weeks, rows = 2, 7
+        # path[0] is (0,0), path[7] is (1,6) in boustrophedon
+        cells = _mock_cells(weeks, rows, [(0, 0), (1, 6)])
+        _, hits = build_snake_path(weeks=weeks, rows=rows, cells=cells)
+        assert 0 in hits
+        assert 7 in hits
+        assert len(hits) == 2
 
     def test_path_stays_in_bounds(self):
         weeks, rows = 53, 7
         cells = _mock_cells(weeks, rows, [(10, 3)])
-        path, hits = build_snake_path(weeks=weeks, rows=rows, cells=cells)
+        path, _ = build_snake_path(weeks=weeks, rows=rows, cells=cells)
         for x, y in path:
             assert 0 <= x < weeks
             assert 0 <= y < rows
 
     def test_adjacent_steps_only(self):
         cells = _mock_cells(10, 7, [(5, 5)])
-        path, hits = build_snake_path(weeks=10, rows=7, cells=cells)
+        path, _ = build_snake_path(weeks=10, rows=7, cells=cells)
         for i in range(len(path) - 1):
             curr, nxt = path[i], path[i + 1]
             dist = abs(curr[0] - nxt[0]) + abs(curr[1] - nxt[1])
@@ -38,11 +48,3 @@ class TestBuildSnakePath:
         cells = _mock_cells(5, 7)
         with pytest.raises(ValueError):
             build_snake_path(weeks=0, rows=7, cells=cells)
-
-    def test_spawn_logic_far_markers(self):
-        # 20 weeks empty, then a marker
-        weeks, rows = 30, 7
-        cells = _mock_cells(weeks, rows, [(20, 3)])
-        # first_marker_col = 20 > 17, so start_col = 20 - 13 = 7
-        path, hits = build_snake_path(weeks=weeks, rows=rows, cells=cells, seed=42)
-        assert path[0][0] == 7
