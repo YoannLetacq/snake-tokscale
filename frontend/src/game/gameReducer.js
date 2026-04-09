@@ -112,8 +112,11 @@ function tick(state) {
     cells[cellIdx] = { ...cell, level: 0, tokens: 0 }
   }
 
-  // Win condition: no more markers with level > 0
-  const win = cells.every((c) => c.level === 0)
+  // Win condition: every marker has been eaten. We also require that the
+  // game actually had markers to start with — otherwise an all-level-0
+  // board (e.g. the fallback grid before grid.json loads) would instantly
+  // satisfy the predicate and lock the player on the WON screen.
+  const win = state.winScore > 0 && cells.every((c) => c.level === 0)
 
   if (win) {
     return {

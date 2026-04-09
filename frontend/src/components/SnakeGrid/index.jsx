@@ -53,12 +53,14 @@ export default function SnakeGrid({ gridData }) {
     persistBest(storageKey, state.best)
   }, [state.best, storageKey])
 
-  // Reset/Start game with current cells when status is IDLE
+  // Wait for grid.json to land before starting the game. Starting with the
+  // all-level-0 fallback would make the reducer's "every cell level === 0"
+  // win check instantly return true and freeze the player on the WON screen.
+  // Whenever a fresh grid arrives we (re)start with the real cells.
   useEffect(() => {
-    if (state.status === 'IDLE') {
-      dispatch({ type: 'START', cells: initialCells })
-    }
-  }, [state.status, initialCells])
+    if (!gridData) return
+    dispatch({ type: 'START', cells: initialCells })
+  }, [gridData, initialCells])
 
   const svgWidth = weeks * (CELL_SIZE + CELL_GAP) - CELL_GAP + MARGIN_LEFT
   const svgHeight = ROWS * (CELL_SIZE + CELL_GAP) - CELL_GAP + MARGIN_TOP

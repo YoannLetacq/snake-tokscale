@@ -35,13 +35,20 @@ def render_animated_snake(
     if len(cells) != expected:
         raise ValueError(f"expected {expected} cells for {weeks} weeks, got {len(cells)}")
 
-    # Guaranteed always-win path
+    # Randomized Hamiltonian path (spawn is random, snake hunts markers)
     path, hits = build_snake_path(weeks=weeks, rows=ROWS, cells=cells)
+
+    # Truncate the loop so the snake stops as soon as it has eaten every
+    # marker — no more pointless wandering across empty cells after the
+    # last meal. If there are no markers we just keep the full sweep.
+    if hits:
+        stop_step = max(hits) + 1
+        path = path[:stop_step]
 
     # Random color palette for this build
     palette = get_random_palette()
 
-    # ~0.1s per step for a snappy animation that clears the whole board
+    # ~0.1s per step for a snappy animation
     actual_duration = len(path) * 0.1
 
     parts = svg_header(
