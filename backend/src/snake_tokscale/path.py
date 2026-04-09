@@ -28,7 +28,7 @@ Coord = tuple[int, int]
 
 
 @dataclass
-class _DfsState:
+class _DfsState:  # pylint: disable=too-many-instance-attributes
     """Mutable state passed through the Hamiltonian DFS recursion."""
 
     weeks: int
@@ -38,6 +38,11 @@ class _DfsState:
     path: list[Coord] = field(default_factory=list)
     visited: set[Coord] = field(default_factory=set)
     remaining_markers: set[Coord] = field(default_factory=set)
+    budget: int = 0
+
+
+class _BudgetExhausted(Exception):
+    """Raised when an attempt exceeds its DFS step budget."""
 
 
 _DIRECTIONS: tuple[tuple[int, int], ...] = ((-1, 0), (1, 0), (0, -1), (0, 1))
@@ -114,10 +119,17 @@ def _find_hamiltonian_path(
     markers: set[Coord],
     attempts: int = 24,
 ) -> list[Coord] | None:
-    """Try several random starts; each attempt runs Warnsdorff-guided DFS."""
+    """Try several random starts; each attempt runs a budgeted Warnsdorff DFS.
+
+    Each attempt has a step budget so a single pathological RNG state cannot
+    stall the whole build. If every bounded attempt fails, the caller falls
+    back to a deterministic boustrophedon so the pipeline always terminates.
+    """
     total = weeks * rows
     majority_parity = _majority_parity(weeks, rows)
-    # Ensure the recursion depth can accommodate the DFS for this grid.
+    # Generous per-attempt budget: ~50× the cell count is enough for even
+    # noisy Warnsdorff runs on a 53×7 grid while finishing in milliseconds.
+    per_attempt_budget = max(total * 50, 5000)
     prev_limit = sys.getrecursionlimit()
     sys.setrecursionlimit(max(prev_limit, total + 200))
     try:
@@ -142,9 +154,13 @@ def _find_hamiltonian_path(
                 path=[start],
                 visited={start},
                 remaining_markers=remaining,
+                budget=per_attempt_budget,
             )
-            if _dfs(state):
-                return state.path
+            try:
+                if _dfs(state):
+                    return state.path
+            except _BudgetExhausted:
+                continue  # this start blew its budget — try another
         return None
     finally:
         sys.setrecursionlimit(prev_limit)
@@ -154,6 +170,9 @@ def _dfs(state: _DfsState) -> bool:
     """Warnsdorff DFS, tie-broken by distance to the nearest uneaten marker."""
     if len(state.path) == state.total:
         return True
+    state.budget -= 1
+    if state.budget <= 0:
+        raise _BudgetExhausted()
     col, row = state.path[-1]
     candidates: list[tuple[int, int, Coord]] = []
     for delta_col, delta_row in _DIRECTIONS:
