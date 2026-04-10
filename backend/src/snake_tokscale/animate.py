@@ -130,27 +130,11 @@ def _fade_animation(
 
 TAPER_COUNT = 5
 TAIL_SHRINK = 5
-
-
-def _seg_geometry(seg_idx: int, max_segments: int) -> tuple[int, float, int]:
-    """Return ``(size, offset, rx)`` for a segment.
-
-    Head (index 0) extends beyond the cell; the last *TAPER_COUNT* body
-    segments shrink progressively toward the tail tip.
-    """
-    if seg_idx == 0:
-        size = CELL_SIZE + 2
-        offset = -(size - CELL_SIZE) / 2
-        return size, offset, 4
-
-    body_size = CELL_SIZE - 2
-    body_offset = (CELL_SIZE - body_size) / 2          # 1px inset
-
-    from_tail = max_segments - 1 - seg_idx
-    if from_tail < TAPER_COUNT:
-        shrink = TAIL_SHRINK - from_tail
-        return body_size - shrink, body_offset + shrink / 2, 2
-    return body_size, body_offset, 3
+_BODY_SIZE = CELL_SIZE - 2
+_BODY_OFFSET = (CELL_SIZE - _BODY_SIZE) / 2   # 1px inset
+_PITCH = CELL_SIZE + CELL_GAP
+_HEAD_SIZE = CELL_SIZE + 2
+_HEAD_OFFSET = -(_HEAD_SIZE - CELL_SIZE) / 2
 
 
 def _render_snake(
@@ -161,84 +145,141 @@ def _render_snake(
 ) -> list[str]:
     """Emit growing snake segments following the fixed path."""
     pieces: list[str] = []
-    # Initial length 4 + grow by 1 for each hit marker
-    appearance_steps = [0, 0, 0, 0] + hits
-    max_segments = min(len(appearance_steps), 60)
+    appearance = [0, 0, 0, 0] + hits
+    max_seg = min(len(appearance), 60)
 
-    data = {
-        "path": path,
-        "max_segments": max_segments,
-        "steps": len(path),
-        "duration": duration_s,
-        "palette": palette,
-    }
+    shrink_table = _build_shrink_table(max_seg, appearance, len(path))
 
-    for seg_idx in range(max_segments):
-        start_step = appearance_steps[seg_idx]
-        pieces.append(_render_segment(seg_idx, start_step, data))
+    ctx = {"path": path, "palette": palette, "dur": duration_s}
 
+    for seg_idx in range(max_seg):
+        if seg_idx == 0:
+            pieces.append(_render_head(ctx))
+        else:
+            pieces.append(
+                _render_body(seg_idx, ctx,
+                             appearance[seg_idx], shrink_table[seg_idx])
+            )
     return pieces
 
 
-def _get_shifted_coords(
-    seg_idx: int, steps: int, data: dict, offset: float,
-) -> tuple[str, str]:
-    """Calculate the semicolon-separated coordinate strings for a segment."""
-    path = data["path"]
-    step = CELL_SIZE + CELL_GAP
-    shifted_x: list[str] = []
-    shifted_y: list[str] = []
-    for i in range(steps):
-        lag_idx = max(0, i - seg_idx)
-        col, row = path[lag_idx]
-        shifted_x.append(f"{col * step + offset:.1f}")
-        shifted_y.append(f"{row * step + offset:.1f}")
-    return ";".join(shifted_x), ";".join(shifted_y)
+def _build_shrink_table(
+    max_seg: int, appearance: list[int], steps: int,
+) -> dict[int, list[int]]:
+    """Return ``{seg_idx: [shrink_at_step_0, shrink_at_step_1, …]}``."""
+    table: dict[int, list[int]] = {}
+    for seg in range(1, max_seg):
+        schedule: list[int] = []
+        for step in range(steps):
+            after = 0
+            for k in range(1, TAPER_COUNT + 1):
+                j = seg + k
+                if j < max_seg and appearance[j] <= step:
+                    after += 1
+            schedule.append(max(0, TAPER_COUNT - after))
+        table[seg] = schedule
+    return table
 
 
-def _init_pos(path: list[tuple[int, int]], offset: float) -> tuple[float, float]:
-    """Return the initial pixel ``(x, y)`` for a segment."""
-    col, row = path[0]
-    pitch = CELL_SIZE + CELL_GAP
-    return col * pitch + offset, row * pitch + offset
+def _render_head(ctx: dict) -> str:
+    """Render the oversized head segment."""
+    path, pal, dur = ctx["path"], ctx["palette"], ctx["dur"]
+    xs: list[str] = []
+    ys: list[str] = []
+    for col, row in path:
+        xs.append(f"{col * _PITCH + _HEAD_OFFSET:.1f}")
+        ys.append(f"{row * _PITCH + _HEAD_OFFSET:.1f}")
 
-
-def _render_segment(seg_idx: int, start_step: int, data: dict) -> str:
-    """Render one segment with lag-logic and opacity sync."""
-    steps, dur = data["steps"], data["duration"]
-    size, offset, rx = _seg_geometry(seg_idx, data["max_segments"])
-    x_v, y_v = _get_shifted_coords(seg_idx, steps, data, offset)
-
-    color = data["palette"].head if seg_idx == 0 else data["palette"].snake
-    s_pct = start_step / max(steps - 1, 1)
-    ix, iy = _init_pos(data["path"], offset)
-
-    rect = (
-        f'<rect class="snake-segment" width="{size}" height="{size}" '
-        f'rx="{rx}" ry="{rx}" fill="{color}" x="{ix:.1f}" y="{iy:.1f}">'
-    )
-
-    if seg_idx >= 4:
-        rect += (
-            f'<animate attributeName="opacity" values="0;0;1;1" '
-            f'keyTimes="0;{s_pct:.4f};{s_pct:.4f};1" '
-            f'begin="loop.begin" dur="{dur:.4f}s" '
-            f'repeatCount="indefinite"/>'
-        )
-    else:
-        rect += (
-            f'<animate attributeName="opacity" from="1" to="1" '
-            f'begin="loop.begin" dur="{dur:.4f}s" '
-            f'repeatCount="indefinite"/>'
-        )
-
-    rect += (
-        f'<animate attributeName="x" values="{x_v}" '
+    return (
+        f'<rect class="snake-segment" width="{_HEAD_SIZE}" height="{_HEAD_SIZE}" '
+        f'rx="4" ry="4" fill="{pal.head}" x="{xs[0]}" y="{ys[0]}">'
+        f'<animate attributeName="opacity" from="1" to="1" '
+        f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite"/>'
+        f'<animate attributeName="x" values="{";".join(xs)}" '
         f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite" '
         f'calcMode="discrete"/>'
-        f'<animate attributeName="y" values="{y_v}" '
+        f'<animate attributeName="y" values="{";".join(ys)}" '
         f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite" '
         f'calcMode="discrete"/>'
         f'</rect>'
     )
+
+
+def _render_body(
+    seg_idx: int, ctx: dict,
+    start_step: int, shrink_schedule: list[int],
+) -> str:
+    """Render one body segment whose size evolves with the taper schedule."""
+    path, pal, dur = ctx["path"], ctx["palette"], ctx["dur"]
+    steps = len(path)
+    s_pct = start_step / max(steps - 1, 1)
+
+    xs, ys, sizes = _body_coords(seg_idx, path, shrink_schedule)
+
+    rect = _body_rect(xs[0], ys[0], sizes[0], pal.snake)
+    rect += _opacity_anim(seg_idx, s_pct, dur)
+    rect += _xy_anim(xs, ys, dur)
+
+    if any(s != sizes[0] for s in sizes):
+        rect += _size_anim(sizes, dur)
+
+    rect += "</rect>"
     return rect
+
+
+def _body_coords(seg_idx, path, shrink_schedule):
+    """Build per-step x, y, and size strings for a body segment."""
+    xs: list[str] = []
+    ys: list[str] = []
+    sizes: list[str] = []
+    for i, shrink in enumerate(shrink_schedule):
+        lag = max(0, i - seg_idx)
+        col, row = path[lag]
+        off = _BODY_OFFSET + shrink / 2
+        xs.append(f"{col * _PITCH + off:.1f}")
+        ys.append(f"{row * _PITCH + off:.1f}")
+        sizes.append(str(_BODY_SIZE - shrink))
+    return xs, ys, sizes
+
+
+def _body_rect(ix: str, iy: str, init_size: str, color: str) -> str:
+    return (
+        f'<rect class="snake-segment" width="{init_size}" height="{init_size}" '
+        f'rx="2" ry="2" fill="{color}" x="{ix}" y="{iy}">'
+    )
+
+
+def _opacity_anim(seg_idx: int, s_pct: float, dur: float) -> str:
+    if seg_idx >= 4:
+        return (
+            f'<animate attributeName="opacity" values="0;0;1;1" '
+            f'keyTimes="0;{s_pct:.4f};{s_pct:.4f};1" '
+            f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite"/>'
+        )
+    return (
+        f'<animate attributeName="opacity" from="1" to="1" '
+        f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite"/>'
+    )
+
+
+def _xy_anim(xs: list[str], ys: list[str], dur: float) -> str:
+    return (
+        f'<animate attributeName="x" values="{";".join(xs)}" '
+        f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite" '
+        f'calcMode="discrete"/>'
+        f'<animate attributeName="y" values="{";".join(ys)}" '
+        f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite" '
+        f'calcMode="discrete"/>'
+    )
+
+
+def _size_anim(sizes: list[str], dur: float) -> str:
+    sz_v = ";".join(sizes)
+    return (
+        f'<animate attributeName="width" values="{sz_v}" '
+        f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite" '
+        f'calcMode="discrete"/>'
+        f'<animate attributeName="height" values="{sz_v}" '
+        f'begin="loop.begin" dur="{dur:.4f}s" repeatCount="indefinite" '
+        f'calcMode="discrete"/>'
+    )
