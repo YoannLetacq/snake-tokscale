@@ -11,12 +11,12 @@ def _cells(n: int):
 
 class TestRenderAnimatedSnake:
     def test_output_is_valid_svg(self):
-        svg = render_animated_snake(_cells(21), weeks=3, snake_length=4)
+        svg, _pal = render_animated_snake(_cells(21), weeks=3, snake_length=4)
         root = ET.fromstring(svg)
         assert root.tag == f"{SVG_NS}svg"
 
     def test_contains_animate_elements(self):
-        svg = render_animated_snake(_cells(21), weeks=3, snake_length=4)
+        svg, _pal = render_animated_snake(_cells(21), weeks=3, snake_length=4)
         root = ET.fromstring(svg)
         animates = root.findall(f".//{SVG_NS}animate")
         assert len(animates) > 0
@@ -25,3 +25,8 @@ class TestRenderAnimatedSnake:
         import pytest
         with pytest.raises(ValueError):
             render_animated_snake(_cells(21), weeks=3, snake_length=0)
+
+    def test_returns_palette(self):
+        _svg, pal = render_animated_snake(_cells(21), weeks=3, snake_length=4)
+        assert pal.name
+        assert len(pal.levels) == 5

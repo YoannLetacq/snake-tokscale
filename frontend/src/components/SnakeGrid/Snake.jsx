@@ -1,20 +1,34 @@
-import { CELL_SIZE, SNAKE_COLOR, SNAKE_HEAD_COLOR, cellX, cellY } from '../../game/palette.js'
+import { CELL_SIZE, DEFAULT_PALETTE, cellX, cellY } from '../../game/palette.js'
 
 // Snake overlay — draws each body cell as a slightly inset rounded rect so the
 // heatmap colour stays visible underneath.
-function Snake({ snake }) {
+const TAPER_COUNT = 5
+const TAIL_SHRINK = 5
+
+function Snake({ snake, palette = DEFAULT_PALETTE }) {
   if (!snake?.length) return null
-  const bodyInset = 1.5
-  const bodySize = CELL_SIZE - bodyInset * 2
+  const bodySize = CELL_SIZE - 2
+  const bodyInset = 1
   const headSize = CELL_SIZE + 2
-  const headOffset = -1 // extend 1px beyond the cell on each side
+  const headOffset = -1
 
   return (
     <g>
       {snake.map((cell, idx) => {
         const isHead = idx === snake.length - 1
-        const size = isHead ? headSize : bodySize
-        const offset = isHead ? headOffset : bodyInset
+        // idx 0 = tail tip, idx length-1 = head
+        const fromTail = idx
+        let size, offset, rx
+        if (isHead) {
+          size = headSize; offset = headOffset; rx = 4
+        } else if (fromTail < TAPER_COUNT) {
+          const shrink = TAPER_COUNT - fromTail
+          size = bodySize - shrink
+          offset = bodyInset + shrink / 2
+          rx = 2
+        } else {
+          size = bodySize; offset = bodyInset; rx = 3
+        }
         return (
           <rect
             key={`snake-${cell.x}-${cell.y}-${idx}`}
@@ -22,9 +36,9 @@ function Snake({ snake }) {
             y={cellY(cell.y) + offset}
             width={size}
             height={size}
-            rx={isHead ? 4 : 3}
-            ry={isHead ? 4 : 3}
-            fill={isHead ? SNAKE_HEAD_COLOR : SNAKE_COLOR}
+            rx={rx}
+            ry={rx}
+            fill={isHead ? palette.head : palette.snake}
             opacity={isHead ? 1 : 0.92}
           />
         )

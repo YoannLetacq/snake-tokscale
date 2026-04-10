@@ -27,8 +27,9 @@ def render_animated_snake(
     weeks: int,
     snake_length: int = 4,
     _duration_s: float = 30.0,
-) -> str:
-    """Return an animated SVG snake traversing every cell and growing on hits."""
+    palette: Palette | None = None,
+) -> tuple[str, Palette]:
+    """Return ``(svg_string, palette)`` for an animated snake traversal."""
     if snake_length <= 0:
         raise ValueError("snake_length must be positive")
     expected = weeks * ROWS
@@ -45,8 +46,9 @@ def render_animated_snake(
         stop_step = max(hits) + 1
         path = path[:stop_step]
 
-    # Random color palette for this build
-    palette = get_random_palette()
+    # Color palette for this build
+    if palette is None:
+        palette = get_random_palette()
 
     # ~0.1s per step for a snappy animation
     actual_duration = len(path) * 0.1
@@ -67,7 +69,7 @@ def render_animated_snake(
     parts.extend(_render_cells(cells, path, palette, actual_duration))
     parts.extend(_render_snake(path, hits, palette, actual_duration))
     parts.append("</g></svg>")
-    return "".join(parts)
+    return "".join(parts), palette
 
 
 def _render_cells(
@@ -126,6 +128,31 @@ def _fade_animation(
     )
 
 
+TAPER_COUNT = 5
+TAIL_SHRINK = 5
+
+
+def _seg_geometry(seg_idx: int, max_segments: int) -> tuple[int, float, int]:
+    """Return ``(size, offset, rx)`` for a segment.
+
+    Head (index 0) extends beyond the cell; the last *TAPER_COUNT* body
+    segments shrink progressively toward the tail tip.
+    """
+    if seg_idx == 0:
+        size = CELL_SIZE + 2
+        offset = -(size - CELL_SIZE) / 2
+        return size, offset, 4
+
+    body_size = CELL_SIZE - 2
+    body_offset = (CELL_SIZE - body_size) / 2          # 1px inset
+
+    from_tail = max_segments - 1 - seg_idx
+    if from_tail < TAPER_COUNT:
+        shrink = TAIL_SHRINK - from_tail
+        return body_size - shrink, body_offset + shrink / 2, 2
+    return body_size, body_offset, 3
+
+
 def _render_snake(
     path: list[tuple[int, int]],
     hits: list[int],
@@ -138,16 +165,9 @@ def _render_snake(
     appearance_steps = [0, 0, 0, 0] + hits
     max_segments = min(len(appearance_steps), 60)
 
-    body_offset = (CELL_SIZE - (CELL_SIZE - 2)) // 2  # 1px inset
-    head_size = CELL_SIZE + 2
-    head_offset = -(head_size - CELL_SIZE) // 2       # 1px outset
-
     data = {
-        "body_x": [str(col * (CELL_SIZE + CELL_GAP) + body_offset) for col, _ in path],
-        "body_y": [str(row * (CELL_SIZE + CELL_GAP) + body_offset) for _, row in path],
-        "head_x": [str(col * (CELL_SIZE + CELL_GAP) + head_offset) for col, _ in path],
-        "head_y": [str(row * (CELL_SIZE + CELL_GAP) + head_offset) for _, row in path],
-        "head_size": head_size,
+        "path": path,
+        "max_segments": max_segments,
         "steps": len(path),
         "duration": duration_s,
         "palette": palette,
@@ -160,34 +180,42 @@ def _render_snake(
     return pieces
 
 
-def _get_shifted_coords(seg_idx: int, steps: int, data: dict) -> tuple[str, str]:
+def _get_shifted_coords(
+    seg_idx: int, steps: int, data: dict, offset: float,
+) -> tuple[str, str]:
     """Calculate the semicolon-separated coordinate strings for a segment."""
-    x_key = "head_x" if seg_idx == 0 else "body_x"
-    y_key = "head_y" if seg_idx == 0 else "body_y"
-    shifted_x = []
-    shifted_y = []
+    path = data["path"]
+    step = CELL_SIZE + CELL_GAP
+    shifted_x: list[str] = []
+    shifted_y: list[str] = []
     for i in range(steps):
         lag_idx = max(0, i - seg_idx)
-        shifted_x.append(data[x_key][lag_idx])
-        shifted_y.append(data[y_key][lag_idx])
+        col, row = path[lag_idx]
+        shifted_x.append(f"{col * step + offset:.1f}")
+        shifted_y.append(f"{row * step + offset:.1f}")
     return ";".join(shifted_x), ";".join(shifted_y)
+
+
+def _init_pos(path: list[tuple[int, int]], offset: float) -> tuple[float, float]:
+    """Return the initial pixel ``(x, y)`` for a segment."""
+    col, row = path[0]
+    pitch = CELL_SIZE + CELL_GAP
+    return col * pitch + offset, row * pitch + offset
 
 
 def _render_segment(seg_idx: int, start_step: int, data: dict) -> str:
     """Render one segment with lag-logic and opacity sync."""
-    steps, dur, pal = data["steps"], data["duration"], data["palette"]
-    x_v, y_v = _get_shifted_coords(seg_idx, steps, data)
+    steps, dur = data["steps"], data["duration"]
+    size, offset, rx = _seg_geometry(seg_idx, data["max_segments"])
+    x_v, y_v = _get_shifted_coords(seg_idx, steps, data, offset)
 
-    is_head = seg_idx == 0
-    color = pal.head if is_head else pal.snake
-    size = data["head_size"] if is_head else CELL_SIZE - 2
-    rx = 4 if is_head else 3
-    xy_key = "head" if is_head else "body"
+    color = data["palette"].head if seg_idx == 0 else data["palette"].snake
     s_pct = start_step / max(steps - 1, 1)
+    ix, iy = _init_pos(data["path"], offset)
 
     rect = (
-        f'<rect class="snake-segment" width="{size}" height="{size}" rx="{rx}" ry="{rx}" '
-        f'fill="{color}" x="{data[xy_key + "_x"][0]}" y="{data[xy_key + "_y"][0]}">'
+        f'<rect class="snake-segment" width="{size}" height="{size}" '
+        f'rx="{rx}" ry="{rx}" fill="{color}" x="{ix:.1f}" y="{iy:.1f}">'
     )
 
     if seg_idx >= 4:

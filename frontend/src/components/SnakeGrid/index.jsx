@@ -6,7 +6,7 @@ import Overlays from './Overlays.jsx'
 import { useGameLoop } from './hooks/useGameLoop.js'
 import { useKeyboard } from './hooks/useKeyboard.js'
 import { createInitialState, gameReducer } from '../../game/gameReducer.js'
-import { CELL_GAP, CELL_SIZE } from '../../game/palette.js'
+import { CELL_GAP, CELL_SIZE, DEFAULT_PALETTE } from '../../game/palette.js'
 import { ROWS } from '../../game/gridMath.js'
 
 const GAME_CONFIG = typeof __GAME_CONFIG__ !== 'undefined' ? __GAME_CONFIG__ : globalThis.__GAME_CONFIG__
@@ -38,6 +38,7 @@ export default function SnakeGrid({ gridData }) {
   const tickMs = GAME_CONFIG?.tick_ms ?? 120
   const storageKey = GAME_CONFIG?.best_storage_key ?? 'snake-tokscale:best'
 
+  const palette = useMemo(() => gridData?.palette ?? DEFAULT_PALETTE, [gridData])
   const initialCells = useMemo(() => gridData?.cells ?? fallbackCells(weeks), [gridData, weeks])
 
   const [state, dispatch] = useReducer(
@@ -94,8 +95,8 @@ export default function SnakeGrid({ gridData }) {
           className="block"
         >
           <g transform={`translate(${MARGIN_LEFT}, ${MARGIN_TOP})`}>
-            <Grid cells={state.cells} weeks={weeks} />
-            <Snake snake={state.snake} />
+            <Grid cells={state.cells} weeks={weeks} palette={palette} />
+            <Snake snake={state.snake} palette={palette} />
           </g>
         </svg>
         <Overlays

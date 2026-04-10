@@ -1,12 +1,13 @@
 import { memo } from 'react'
-import { CELL_SIZE, LEVEL_COLORS, cellX, cellY } from '../../game/palette.js'
+import { CELL_SIZE, DEFAULT_PALETTE, cellX, cellY } from '../../game/palette.js'
 import { ROWS } from '../../game/gridMath.js'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 // Heatmap `<g>` layer — column-major, row 0 = Sunday at the top.
-function Grid({ cells, weeks }) {
+function Grid({ cells, weeks, palette = DEFAULT_PALETTE }) {
+  const levelColors = palette.levels
   // Extract unique months and their column positions
   const monthLabels = []
   let lastMonth = -1
@@ -52,7 +53,7 @@ function Grid({ cells, weeks }) {
             height={CELL_SIZE}
             rx={2}
             ry={2}
-            fill={LEVEL_COLORS[cell.level] ?? LEVEL_COLORS[0]}
+            fill={levelColors[cell.level] ?? levelColors[0]}
           />
         )
       })}
