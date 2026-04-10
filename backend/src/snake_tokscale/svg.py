@@ -14,10 +14,10 @@ from snake_tokscale.normalize import Cell
 EXCLUDE_PALETTE_ENV = "SNAKE_TOKSCALE_EXCLUDE_PALETTE"
 
 ROWS = 7
-CELL_SIZE = 12
+CELL_SIZE = 15
 CELL_GAP = 2
 GRID_PAD_TOP = 25
-GRID_PAD_LEFT = 35
+GRID_PAD_LEFT = 40
 GRID_PAD_RIGHT = 10
 GRID_PAD_BOTTOM = 10
 
@@ -130,6 +130,28 @@ def iter_cell_positions(cells: list[Cell], palette: Palette):
         yield col, row, x, y, level, color
 
 
+def _month_labels(cells: list[Cell], weeks: int) -> list[str]:
+    """Return ``<text>`` elements for month labels along the top of the grid."""
+    labels: list[str] = []
+    last_month = -1
+    for col in range(weeks):
+        cell = cells[col * ROWS]
+        if not cell.get("date"):
+            continue
+        try:
+            dt = datetime.fromisoformat(cell["date"])
+        except ValueError:
+            continue
+        month = dt.month - 1
+        if month != last_month:
+            labels.append(
+                f'<text x="{GRID_PAD_LEFT + cell_x(col)}" '
+                f'y="{GRID_PAD_TOP - 8}">{MONTHS[month]}</text>'
+            )
+            last_month = month
+    return labels
+
+
 def svg_header(
     weeks: int,
     cells: list[Cell] | None = None,
@@ -157,26 +179,14 @@ def svg_header(
         'Arial,sans-serif; font-size: 9px; fill: #8b949e;">',
     ]
 
-    parts.append(f'<text x="{GRID_PAD_LEFT - 25}" y="{GRID_PAD_TOP + cell_y(1) + 9}">Mon</text>')
-    parts.append(f'<text x="{GRID_PAD_LEFT - 25}" y="{GRID_PAD_TOP + cell_y(3) + 9}">Wed</text>')
-    parts.append(f'<text x="{GRID_PAD_LEFT - 25}" y="{GRID_PAD_TOP + cell_y(5) + 9}">Fri</text>')
+    lx = GRID_PAD_LEFT - 30
+    dy = CELL_SIZE // 2 + 4
+    for row, label in ((1, "Mon"), (3, "Wed"), (5, "Fri")):
+        ly = GRID_PAD_TOP + cell_y(row) + dy
+        parts.append(f'<text x="{lx}" y="{ly}">{label}</text>')
 
     if cells:
-        last_month = -1
-        for col in range(weeks):
-            cell = cells[col * ROWS]
-            if cell.get("date"):
-                try:
-                    dt = datetime.fromisoformat(cell["date"])
-                    month = dt.month - 1
-                    if month != last_month:
-                        parts.append(
-                            f'<text x="{GRID_PAD_LEFT + cell_x(col)}" '
-                            f'y="{GRID_PAD_TOP - 8}">{MONTHS[month]}</text>'
-                        )
-                        last_month = month
-                except ValueError:
-                    pass
+        parts.extend(_month_labels(cells, weeks))
 
     parts.append("</g>")
     parts.append(f'<g class="cells" transform="translate({GRID_PAD_LEFT},{GRID_PAD_TOP})">')

@@ -4,22 +4,26 @@ import { CELL_SIZE, SNAKE_COLOR, SNAKE_HEAD_COLOR, cellX, cellY } from '../../ga
 // heatmap colour stays visible underneath.
 function Snake({ snake }) {
   if (!snake?.length) return null
-  const inset = 1.5
-  const size = CELL_SIZE - inset * 2
+  const bodyInset = 1.5
+  const bodySize = CELL_SIZE - bodyInset * 2
+  const headSize = CELL_SIZE + 2
+  const headOffset = -1 // extend 1px beyond the cell on each side
 
   return (
     <g>
       {snake.map((cell, idx) => {
         const isHead = idx === snake.length - 1
+        const size = isHead ? headSize : bodySize
+        const offset = isHead ? headOffset : bodyInset
         return (
           <rect
             key={`snake-${cell.x}-${cell.y}-${idx}`}
-            x={cellX(cell.x) + inset}
-            y={cellY(cell.y) + inset}
+            x={cellX(cell.x) + offset}
+            y={cellY(cell.y) + offset}
             width={size}
             height={size}
-            rx={3}
-            ry={3}
+            rx={isHead ? 4 : 3}
+            ry={isHead ? 4 : 3}
             fill={isHead ? SNAKE_HEAD_COLOR : SNAKE_COLOR}
             opacity={isHead ? 1 : 0.92}
           />

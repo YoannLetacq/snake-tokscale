@@ -138,9 +138,16 @@ def _render_snake(
     appearance_steps = [0, 0, 0, 0] + hits
     max_segments = min(len(appearance_steps), 60)
 
+    body_offset = (CELL_SIZE - (CELL_SIZE - 2)) // 2  # 1px inset
+    head_size = CELL_SIZE + 2
+    head_offset = -(head_size - CELL_SIZE) // 2       # 1px outset
+
     data = {
-        "x": [str(col * (CELL_SIZE + CELL_GAP) + 1) for col, _ in path],
-        "y": [str(row * (CELL_SIZE + CELL_GAP) + 1) for _, row in path],
+        "body_x": [str(col * (CELL_SIZE + CELL_GAP) + body_offset) for col, _ in path],
+        "body_y": [str(row * (CELL_SIZE + CELL_GAP) + body_offset) for _, row in path],
+        "head_x": [str(col * (CELL_SIZE + CELL_GAP) + head_offset) for col, _ in path],
+        "head_y": [str(row * (CELL_SIZE + CELL_GAP) + head_offset) for _, row in path],
+        "head_size": head_size,
         "steps": len(path),
         "duration": duration_s,
         "palette": palette,
@@ -155,12 +162,14 @@ def _render_snake(
 
 def _get_shifted_coords(seg_idx: int, steps: int, data: dict) -> tuple[str, str]:
     """Calculate the semicolon-separated coordinate strings for a segment."""
+    x_key = "head_x" if seg_idx == 0 else "body_x"
+    y_key = "head_y" if seg_idx == 0 else "body_y"
     shifted_x = []
     shifted_y = []
     for i in range(steps):
         lag_idx = max(0, i - seg_idx)
-        shifted_x.append(data["x"][lag_idx])
-        shifted_y.append(data["y"][lag_idx])
+        shifted_x.append(data[x_key][lag_idx])
+        shifted_y.append(data[y_key][lag_idx])
     return ";".join(shifted_x), ";".join(shifted_y)
 
 
@@ -169,13 +178,16 @@ def _render_segment(seg_idx: int, start_step: int, data: dict) -> str:
     steps, dur, pal = data["steps"], data["duration"], data["palette"]
     x_v, y_v = _get_shifted_coords(seg_idx, steps, data)
 
-    color = pal.head if seg_idx == 0 else pal.snake
-    size = CELL_SIZE - 2
+    is_head = seg_idx == 0
+    color = pal.head if is_head else pal.snake
+    size = data["head_size"] if is_head else CELL_SIZE - 2
+    rx = 4 if is_head else 3
+    xy_key = "head" if is_head else "body"
     s_pct = start_step / max(steps - 1, 1)
 
     rect = (
-        f'<rect class="snake-segment" width="{size}" height="{size}" rx="3" ry="3" '
-        f'fill="{color}" x="{data["x"][0]}" y="{data["y"][0]}">'
+        f'<rect class="snake-segment" width="{size}" height="{size}" rx="{rx}" ry="{rx}" '
+        f'fill="{color}" x="{data[xy_key + "_x"][0]}" y="{data[xy_key + "_y"][0]}">'
     )
 
     if seg_idx >= 4:
