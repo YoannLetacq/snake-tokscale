@@ -12,6 +12,18 @@ A Snake that eats your **tokscale.ai** token-usage heatmap — inspired by
 
 > Click the grid above to play the live version on GitHub Pages.
 
+## Make it yours (Quick Start)
+
+Want your own tokscale snake on your GitHub profile?
+
+1. **Fork** this repository.
+2. Edit `config.toml` and change `[tokscale].username` to your `tokscale.ai` username.
+3. If you rename the repository, update `[deploy].base_path` in `config.toml` to match your new repository name (e.g., `"/my-new-repo/"`).
+4. Update the image and link URLs at the top of this `README.md` to point to your fork.
+5. Enable GitHub Actions in your fork (go to the **Actions** tab and click "I understand my workflows, go ahead and enable them").
+6. Go to your repository **Settings** > **Pages**. Ensure the **Source** under **Build and deployment** is set to **GitHub Actions**.
+7. Trigger the `refresh-and-deploy` workflow manually from the Actions tab to generate your first grid and deploy the game!
+
 ## Stack
 
 - **Backend** — Python 3.12 + `uv`, CLI that fetches tokscale data and writes `grid.json`.
