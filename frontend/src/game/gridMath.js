@@ -4,11 +4,11 @@
 
 export const ROWS = 7
 
-export function indexOf(weeks, x, y) {
+export function indexOf(_weeks, x, y) {
   return x * ROWS + y
 }
 
-export function coordOf(weeks, index) {
+export function coordOf(_weeks, index) {
   return { x: Math.floor(index / ROWS), y: index % ROWS }
 }
 

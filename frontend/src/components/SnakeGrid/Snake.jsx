@@ -3,7 +3,6 @@ import { CELL_SIZE, DEFAULT_PALETTE, cellX, cellY } from '../../game/palette.js'
 // Snake overlay — draws each body cell as a slightly inset rounded rect so the
 // heatmap colour stays visible underneath.
 const TAPER_COUNT = 5
-const TAIL_SHRINK = 5
 
 function Snake({ snake, palette = DEFAULT_PALETTE }) {
   if (!snake?.length) return null

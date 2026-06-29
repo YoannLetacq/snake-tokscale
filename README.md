@@ -37,7 +37,7 @@ All non-secret configuration lives in [`config.toml`](./config.toml):
 ```toml
 [tokscale]
 username = "YoannLetacq"
-api_base = "https://tokscale.ai/api"
+api_base = "https://tokscale.ai"
 timeout = 30
 
 [grid]
@@ -88,6 +88,26 @@ npm test       # Vitest unit tests
 
 Push to `master` (or trigger `refresh-and-deploy.yml` manually) — the workflow regenerates
 `grid.json`, builds the Vite bundle, and publishes to GitHub Pages.
+
+## Variables d'environnement
+
+Copy `env.example` to `.env` (git-ignored). Available variables:
+
+| Variable | Description |
+|---|---|
+| `TOKSCALE_API_TOKEN` | Optionnel — inutilisé aujourd'hui (l'API publique n'exige pas d'authentification). |
+
+Secrets must never be hard-coded or committed; use `.env` exclusively.
+
+## Style de code
+
+- **Python** — PEP 8, enforced by pylint (score 10.00/10 required in CI).
+- **JavaScript** — ESLint (exit 0 required in CI).
+
+## Credits
+
+Inspired by [`Platane/snk`](https://github.com/Platane/snk).
+Token-usage data sourced from the [tokscale.ai](https://tokscale.ai) public API — built by [@junhoyeo](https://github.com/junhoyeo/tokscale).
 
 ## Security
 

@@ -27,13 +27,20 @@ from snake_tokscale.normalize import Cell
 Coord = tuple[int, int]
 
 
-@dataclass
-class _DfsState:  # pylint: disable=too-many-instance-attributes
-    """Mutable state passed through the Hamiltonian DFS recursion."""
+@dataclass(frozen=True)
+class _GridDims:
+    """Immutable grid dimensions derived once per path-finding run."""
 
     weeks: int
     rows: int
     total: int
+
+
+@dataclass
+class _DfsState:
+    """Mutable state passed through the Hamiltonian DFS recursion."""
+
+    dims: _GridDims
     rng: random.Random
     path: list[Coord] = field(default_factory=list)
     visited: set[Coord] = field(default_factory=set)
@@ -147,9 +154,7 @@ def _find_hamiltonian_path(
             remaining = set(markers)
             remaining.discard(start)  # spawning on a marker already eats it
             state = _DfsState(
-                weeks=weeks,
-                rows=rows,
-                total=total,
+                dims=_GridDims(weeks=weeks, rows=rows, total=total),
                 rng=rng,
                 path=[start],
                 visited={start},
@@ -168,7 +173,7 @@ def _find_hamiltonian_path(
 
 def _dfs(state: _DfsState) -> bool:
     """Warnsdorff DFS, tie-broken by distance to the nearest uneaten marker."""
-    if len(state.path) == state.total:
+    if len(state.path) == state.dims.total:
         return True
     state.budget -= 1
     if state.budget <= 0:
@@ -178,8 +183,8 @@ def _dfs(state: _DfsState) -> bool:
     for delta_col, delta_row in _DIRECTIONS:
         nxt = (col + delta_col, row + delta_row)
         if (
-            0 <= nxt[0] < state.weeks
-            and 0 <= nxt[1] < state.rows
+            0 <= nxt[0] < state.dims.weeks
+            and 0 <= nxt[1] < state.dims.rows
             and nxt not in state.visited
         ):
             degree = _unvisited_degree(nxt, state)
@@ -223,8 +228,8 @@ def _unvisited_degree(cell: Coord, state: _DfsState) -> int:
     for delta_col, delta_row in _DIRECTIONS:
         next_col, next_row = col + delta_col, row + delta_row
         if (
-            0 <= next_col < state.weeks
-            and 0 <= next_row < state.rows
+            0 <= next_col < state.dims.weeks
+            and 0 <= next_row < state.dims.rows
             and (next_col, next_row) not in state.visited
         ):
             count += 1

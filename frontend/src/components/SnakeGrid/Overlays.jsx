@@ -22,8 +22,8 @@ function IdleCard() {
     <>
       <h1 className="text-5xl font-bold tracking-tight text-neutral-50">SNAKE</h1>
       <p className="mt-3 text-neutral-300">
-        Press <kbd className="rounded bg-neutral-800 px-2 py-0.5 text-xs">Space</kbd> to start ·
-        <kbd className="ml-1 rounded bg-neutral-800 px-2 py-0.5 text-xs">← ↑ → ↓</kbd> to move
+        Appuyez sur <kbd className="rounded bg-neutral-800 px-2 py-0.5 text-xs">Espace</kbd> pour démarrer ·
+        <kbd className="ml-1 rounded bg-neutral-800 px-2 py-0.5 text-xs">← ↑ → ↓</kbd> pour vous déplacer
       </p>
     </>
   )
@@ -32,12 +32,12 @@ function IdleCard() {
 function LostCard({ score, best }) {
   return (
     <>
-      <h1 className="text-4xl font-bold text-red-400">Game Over</h1>
+      <h1 className="text-4xl font-bold text-red-400">Partie terminée</h1>
       <p className="mt-2 text-neutral-200">
-        Score: <strong>{score}</strong> · Best: <strong>{best}</strong>
+        Score : <strong>{score}</strong> · Meilleur : <strong>{best}</strong>
       </p>
       <p className="mt-2 text-neutral-400 text-sm">
-        Press <kbd className="rounded bg-neutral-800 px-2 py-0.5 text-xs">Space</kbd> to retry
+        Appuyez sur <kbd className="rounded bg-neutral-800 px-2 py-0.5 text-xs">Espace</kbd> pour réessayer
       </p>
     </>
   )
@@ -46,10 +46,10 @@ function LostCard({ score, best }) {
 function WonCard({ target }) {
   return (
     <>
-      <h1 className="text-4xl font-bold text-emerald-400 animate-pulse">You win!</h1>
-      <p className="mt-2 text-neutral-200">Reached the target of {target}.</p>
+      <h1 className="text-4xl font-bold text-emerald-400 animate-pulse">Gagné !</h1>
+      <p className="mt-2 text-neutral-200">Objectif de {target} atteint.</p>
       <p className="mt-2 text-neutral-400 text-sm">
-        Press <kbd className="rounded bg-neutral-800 px-2 py-0.5 text-xs">Space</kbd> to play again
+        Appuyez sur <kbd className="rounded bg-neutral-800 px-2 py-0.5 text-xs">Espace</kbd> pour rejouer
       </p>
     </>
   )
