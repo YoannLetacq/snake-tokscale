@@ -6,10 +6,10 @@ function HUD({ score, best, target, username, generatedAt }) {
           Score <strong className="text-neutral-50">{score}</strong>
         </span>
         <span>
-          Best <strong className="text-neutral-50">{best}</strong>
+          Meilleur <strong className="text-neutral-50">{best}</strong>
         </span>
         <span>
-          Target <strong className="text-neutral-50">{target}</strong>
+          Objectif <strong className="text-neutral-50">{target}</strong>
         </span>
       </div>
       <div className="text-xs text-neutral-500">

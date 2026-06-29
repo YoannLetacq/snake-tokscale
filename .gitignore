@@ -33,3 +33,10 @@ Thumbs.db
 
 # Generated data (rebuilt by CI)
 frontend/public/grid.json
+
+# Local AI session exports / tooling state (never commit)
+.gemini/
+.omc/
+CLAUDE.md
+*-hello-claude.txt
+*-command-message*.txt

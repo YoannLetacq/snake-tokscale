@@ -129,7 +129,6 @@ def _fade_animation(
 
 
 TAPER_COUNT = 5
-TAIL_SHRINK = 5
 _BODY_SIZE = CELL_SIZE - 2
 _BODY_OFFSET = (CELL_SIZE - _BODY_SIZE) / 2   # 1px inset
 _PITCH = CELL_SIZE + CELL_GAP

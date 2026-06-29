@@ -34,11 +34,11 @@ export default function App() {
           snake-tokscale <span className="text-neutral-500">/ @{USERNAME}</span>
         </h1>
         <p className="text-sm text-neutral-400">
-          Play snake on your <a className="text-emerald-400 hover:underline" href="https://tokscale.ai">tokscale.ai</a> token-usage heatmap.
+          Jouez au Snake sur votre carte thermique de tokens <a className="text-emerald-400 hover:underline" href="https://tokscale.ai">tokscale.ai</a>.
         </p>
       </header>
       {error ? (
-        <p className="p-6 text-red-400">Failed to load grid.json: {error}</p>
+        <p className="p-6 text-red-400">Impossible de charger grid.json : {error}</p>
       ) : (
         <SnakeGrid gridData={gridData} />
       )}

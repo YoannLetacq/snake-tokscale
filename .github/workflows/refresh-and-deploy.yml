@@ -10,9 +10,7 @@ on:
     branches: [master]
 
 permissions:
-  contents: write       # needed to push the SVG to the `output` branch
-  pages: write          # needed to deploy to GitHub Pages
-  id-token: write       # needed by actions/deploy-pages
+  contents: read        # default: read-only; write is granted per-job only
 
 concurrency:
   group: snake-tokscale-deploy
@@ -21,6 +19,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read    # checkout + upload artifact only
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     outputs:
@@ -107,6 +107,8 @@ jobs:
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # push the refreshed snake.svg to the `output` branch
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -150,6 +152,9 @@ jobs:
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      pages: write      # deploy to GitHub Pages
+      id-token: write   # required by actions/deploy-pages OIDC authentication
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}

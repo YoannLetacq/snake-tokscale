@@ -4,10 +4,11 @@ Pure string assembly — no third-party SVG library needed.
 """
 
 from __future__ import annotations
+
 import os
 import random
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 
 from snake_tokscale.normalize import Cell
 
@@ -84,7 +85,9 @@ PALETTES = (
 )
 
 
-_LAST_PALETTE_NAME: str | None = None
+# Mutable holder for the last palette name so the function avoids repeating
+# the same colour on consecutive calls without requiring a global rebind.
+_PALETTE_STATE: dict[str, str | None] = {"last": None}
 
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
@@ -97,17 +100,16 @@ def get_random_palette(exclude: str | None = None) -> Palette:
     ``SNAKE_TOKSCALE_EXCLUDE_PALETTE`` environment variable (used by CI to
     thread the previous build's palette through).
     """
-    global _LAST_PALETTE_NAME  # pylint: disable=global-statement
     banned = exclude
     if banned is None:
-        banned = _LAST_PALETTE_NAME
+        banned = _PALETTE_STATE["last"]
     if banned is None:
         banned = os.environ.get(EXCLUDE_PALETTE_ENV) or None
     choices = tuple(p for p in PALETTES if p.name != banned)
     if not choices:
         choices = PALETTES
     chosen = random.choice(choices)
-    _LAST_PALETTE_NAME = chosen.name
+    _PALETTE_STATE["last"] = chosen.name
     return chosen
 
 
