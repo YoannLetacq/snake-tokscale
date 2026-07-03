@@ -1,6 +1,6 @@
 # snake-tokscale
 
-A Snake that eats your **tokscale.ai** token-usage heatmap — inspired by
+A Snake that eats your **[tokscale.ai](https://tokscale.ai/)** token-usage heatmap — inspired by
 [`Platane/snk`](https://github.com/Platane/snk), but with two differences:
 
 1. the grid comes from the public `https://tokscale.ai/api/users/<username>` endpoint
